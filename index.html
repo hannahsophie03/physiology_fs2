@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Humanphysiologie</title>
+  <link rel="stylesheet" href="src/style.css" />
+</head>
+<body>
+
+  <!-- TOP NAV -->
+  <nav id="top-nav">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+      <div id="nav-logo">Physiologie</div>
+      <div id="nav-backup-btns">
+        <button id="btn-export" title="Alle Daten als Backup speichern">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Backup
+        </button>
+        <button id="btn-import" title="Backup importieren">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import
+        </button>
+        <input type="file" id="import-file-input" accept=".json" style="display:none" />
+      </div>
+    </div>
+    <div id="nav-topics"></div>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <main id="main">
+    <!-- Home screen -->
+    <div id="home-screen">
+      <h2>Wähle ein Thema oben in der Leiste</h2>
+      <p>Deine Lernkarten, Notizen und Bilder werden automatisch im Browser gespeichert.</p>
+    </div>
+
+    <!-- Topic screen (injected by JS) -->
+    <div id="topic-screen" class="hidden">
+      <div id="topic-header">
+        <h2 id="topic-title"></h2>
+        <div id="topic-actions">
+          <button class="action-btn" id="btn-new-folder" title="Neuer Ordner">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            Ordner
+          </button>
+          <button class="action-btn primary" id="btn-add" title="Inhalt hinzufügen">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Hinzufügen
+          </button>
+        </div>
+      </div>
+
+      <!-- Folder breadcrumb -->
+      <div id="breadcrumb" class="hidden"></div>
+
+      <!-- Content grid -->
+      <div id="content-grid"></div>
+    </div>
+  </main>
+
+  <!-- ===== MODALS ===== -->
+
+  <!-- Add-type chooser -->
+  <div id="modal-add" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-title">Was möchtest du hinzufügen?</div>
+      <div class="add-type-grid">
+        <button class="add-type-btn" data-type="flashcard">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="12" x2="22" y2="12" stroke-dasharray="4 2"/></svg>
+          Karteikarte
+        </button>
+        <button class="add-type-btn" data-type="note">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/></svg>
+          Notiz
+        </button>
+        <button class="add-type-btn" data-type="image">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Bild
+        </button>
+      </div>
+      <button class="modal-close" id="modal-add-close">Abbrechen</button>
+    </div>
+  </div>
+
+  <!-- Flashcard editor -->
+  <div id="modal-flashcard" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-title" id="fc-modal-title">Neue Karteikarte</div>
+      <label class="field-label">Vorderseite</label>
+      <textarea id="fc-front" placeholder="Frage oder Begriff…" rows="3"></textarea>
+      <label class="field-label" style="margin-top:12px">Rückseite</label>
+      <textarea id="fc-back" placeholder="Antwort oder Erklärung…" rows="4"></textarea>
+      <div class="modal-footer">
+        <button class="modal-close" id="fc-cancel">Abbrechen</button>
+        <button class="btn-save" id="fc-save">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Note editor -->
+  <div id="modal-note" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-title" id="note-modal-title">Neue Notiz</div>
+      <input id="note-title-input" placeholder="Titel…" style="margin-bottom:10px" />
+      <textarea id="note-body" placeholder="Text…" rows="6"></textarea>
+      <div class="modal-footer">
+        <button class="modal-close" id="note-cancel">Abbrechen</button>
+        <button class="btn-save" id="note-save">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image upload -->
+  <div id="modal-image" class="modal hidden">
+    <div class="modal-box">
+      <div class="modal-title">Bild hinzufügen</div>
+      <label class="field-label">Bildtitel (optional)</label>
+      <input id="img-title-input" placeholder="z.B. Frank-Starling-Kurve" style="margin-bottom:14px" />
+      <label class="field-label">Bild auswählen</label>
+      <div id="img-drop-zone">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span>Klicken oder Bild hier hineinziehen</span>
+        <input type="file" id="img-file-input" accept="image/*" />
+      </div>
+      <img id="img-preview" class="hidden" alt="Vorschau" />
+      <div class="modal-footer">
+        <button class="modal-close" id="img-cancel">Abbrechen</button>
+        <button class="btn-save" id="img-save">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Folder creator -->
+  <div id="modal-folder" class="modal hidden">
+    <div class="modal-box" style="max-width:360px">
+      <div class="modal-title">Neuer Ordner</div>
+      <input id="folder-name-input" placeholder="Ordnername…" />
+      <div class="modal-footer">
+        <button class="modal-close" id="folder-cancel">Abbrechen</button>
+        <button class="btn-save" id="folder-save">Erstellen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flashcard Zoom -->
+  <div id="fc-zoom-overlay" class="modal hidden">
+    <div class="fc-zoom-container">
+      <button id="fc-zoom-close">✕</button>
+      <div class="fc-zoom-card">
+        <div class="fc-zoom-inner">
+          <div class="fc-zoom-front">
+            <div class="fc-label">Frage</div>
+            <div class="fc-text"></div>
+          </div>
+          <div class="fc-zoom-back">
+            <div class="fc-label">Antwort</div>
+            <div class="fc-text"></div>
+          </div>
+        </div>
+      </div>
+      <div class="fc-zoom-hint">Klicken zum Umdrehen</div>
+    </div>
+  </div>
+
+  <!-- Image lightbox -->
+  <div id="lightbox" class="modal hidden">
+    <div class="lightbox-inner">
+      <button id="lightbox-close">✕</button>
+      <img id="lightbox-img" alt="" />
+      <div id="lightbox-caption"></div>
+    </div>
+  </div>
+
+  <script src="src/store.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
