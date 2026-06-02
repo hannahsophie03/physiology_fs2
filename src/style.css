@@ -68,6 +68,16 @@ body {
   white-space: nowrap;
   letter-spacing: 0.02em;
   margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#server-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: #2f9e44;
+  letter-spacing: 0;
 }
 
 #nav-topics {
@@ -446,6 +456,98 @@ body {
 
 
 .note-card .card-body { padding-right: 36px; }
+.note-card .card-body { cursor: pointer; }
+.note-card .card-body:hover .card-title { color: var(--accent); }
+
+/* ============================================================
+   NOTE DETAIL VIEW
+   ============================================================ */
+#modal-note-view { align-items: flex-start; padding: 2rem 1rem; overflow-y: auto; }
+
+.note-view-box {
+  background: var(--bg);
+  border-radius: var(--radius-lg);
+  border: 0.5px solid var(--border-md);
+  width: 100%;
+  max-width: 720px;
+  margin: auto;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.note-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 0.5px solid var(--border);
+  gap: 12px;
+}
+.note-view-header h2 {
+  font-size: 18px;
+  font-weight: 500;
+  flex: 1;
+  word-break: break-word;
+}
+.note-view-close-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.note-view-close-btn:hover { background: var(--bg-secondary); color: var(--text); }
+
+#note-view-body {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  overflow-y: auto;
+  max-height: calc(90vh - 80px);
+}
+
+.note-view-text {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.note-view-img-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.note-view-img-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.note-view-img-wrap img {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  border: 0.5px solid var(--border-md);
+  cursor: zoom-in;
+  transition: opacity 0.15s;
+}
+.note-view-img-wrap img:hover { opacity: 0.88; }
+.note-view-img-caption {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+
 .note-preview {
   font-size: 13px;
   color: var(--text-muted);
@@ -654,4 +756,158 @@ textarea { resize: vertical; line-height: 1.55; }
   #main { padding: 1rem; }
   #content-grid { grid-template-columns: 1fr; }
   .add-type-grid { grid-template-columns: repeat(3,1fr); }
+}
+
+/* ============================================================
+   DRAG & DROP
+   ============================================================ */
+.drag-handle {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 16px;
+  color: var(--text-hint);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s;
+  user-select: none;
+  line-height: 1;
+}
+.draggable:hover .drag-handle { opacity: 1; }
+.drag-handle:active { cursor: grabbing; }
+
+.fc-drag-handle {
+  position: relative;
+  top: auto; left: auto;
+  display: flex;
+  justify-content: center;
+  font-size: 16px;
+  color: var(--text-hint);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s;
+  user-select: none;
+  padding: 2px 0;
+}
+.flashcard-wrapper:hover .fc-drag-handle { opacity: 1; }
+
+.img-drag-handle {
+  z-index: 2;
+  background: rgba(0,0,0,0.35);
+  color: #fff;
+  border-radius: 0 0 var(--radius-sm) 0;
+}
+
+.card.draggable,
+.flashcard-wrapper.draggable { position: relative; }
+
+.dragging {
+  position: fixed !important;
+  z-index: 9999;
+  opacity: 0.85;
+  box-shadow: var(--shadow-md);
+  pointer-events: none;
+  transform: rotate(1.5deg);
+}
+
+.drag-placeholder {
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent-light);
+  opacity: 0.5;
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   NOTE IMAGES
+   ============================================================ */
+.note-img-section { display: flex; flex-direction: column; gap: 6px; }
+.note-add-img-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 12px;
+  border: 0.5px dashed var(--border-md);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  width: fit-content;
+  transition: all 0.15s;
+  margin-top: 4px;
+}
+.note-add-img-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+.note-img-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+}
+.note-img-thumb {
+  width: 48px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.note-img-caption {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 13px;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Image strip inside note card */
+.note-img-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.note-img-strip img {
+  width: 64px;
+  height: 52px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 0.5px solid var(--border);
+  cursor: zoom-in;
+}
+
+/* ============================================================
+   IMAGE EDIT DROP ZONE
+   ============================================================ */
+#img-edit-drop-zone {
+  border: 1.5px dashed var(--border-md);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+#img-edit-drop-zone:hover, #img-edit-drop-zone.drag-over {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-light);
+}
+#img-edit-file {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
 }

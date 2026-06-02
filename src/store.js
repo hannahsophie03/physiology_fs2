@@ -1,10 +1,19 @@
 // ============================================================
-//  store.js — Datenpersistenz via localStorage
+//  store.js — Datenpersistenz
+//
+//  Zwei Modi, automatisch erkannt:
+//
+//  SERVER-MODUS  (node server.js → http://localhost:3000)
+//    → liest/schreibt data.json via API
+//    → Änderungen sofort in VS Code sichtbar
+//
+//  DATEI-MODUS  (index.html direkt im Browser geöffnet)
+//    → speichert in localStorage (wie vorher)
 //
 //  Datenmodell:
-//    physio_data = {
+//    {
 //      [topicId]: {
-//        items: [ ...Item ],          // alle Items flach gespeichert
+//        items: [ ...Item ]
 //      }
 //    }
 //
@@ -13,24 +22,53 @@
 //    { id, type:"note",      folderId, title, body, createdAt }
 //    { id, type:"image",     folderId, title, dataUrl, createdAt }
 //    { id, type:"folder",    folderId, name,  createdAt }
-//      (folderId = null → root; folderId = id eines Ordners → darin)
 // ============================================================
 
+const SERVER_MODE = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 const STORAGE_KEY = "physio_data";
 
 const Store = (() => {
 
-  function _load() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
-    catch { return {}; }
+  // ---- interner Cache (vermeidet unnötige Netzwerk-Roundtrips) ----
+  let _cache = null;
+
+  // ---- Laden ----
+  async function _load() {
+    if (_cache) return _cache;
+    if (SERVER_MODE) {
+      try {
+        const res  = await fetch("/api/data");
+        _cache = await res.json();
+      } catch {
+        _cache = {};
+      }
+    } else {
+      try { _cache = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+      catch { _cache = {}; }
+    }
+    return _cache;
   }
 
-  function _save(data) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  // ---- Speichern ----
+  async function _save(data) {
+    _cache = data;
+    if (SERVER_MODE) {
+      try {
+        await fetch("/api/data", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(data),
+        });
+      } catch {
+        console.error("Speichern fehlgeschlagen — läuft server.js?");
+      }
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
   }
 
-  function _topicData(topicId) {
-    const data = _load();
+  async function _topicData(topicId) {
+    const data = await _load();
     if (!data[topicId]) data[topicId] = { items: [] };
     return { data, topic: data[topicId] };
   }
@@ -39,48 +77,49 @@ const Store = (() => {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   }
 
-  // --- Public API ---
-
+  // ---- Öffentliche API ----
   return {
-    /** Alle Items eines Topics (optional: gefiltert nach folderId) */
-    getItems(topicId, folderId = null) {
-      const { topic } = _topicData(topicId);
-      return topic.items.filter(i => (i.folderId ?? null) === folderId);
+
+    isServerMode() { return SERVER_MODE; },
+
+    /** Cache leeren (z.B. nach Import) */
+    clearCache() { _cache = null; },
+
+    async getItems(topicId, folderId = null) {
+      const { topic } = await _topicData(topicId);
+      return topic.items
+        .filter(i => (i.folderId ?? null) === folderId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
     },
 
-    /** Ein einzelnes Item laden */
-    getItem(topicId, itemId) {
-      const { topic } = _topicData(topicId);
+    async getItem(topicId, itemId) {
+      const { topic } = await _topicData(topicId);
       return topic.items.find(i => i.id === itemId) || null;
     },
 
-    /** Neues Item anlegen; gibt das Item zurück */
-    addItem(topicId, itemData) {
-      const { data, topic } = _topicData(topicId);
+    async addItem(topicId, itemData) {
+      const { data, topic } = await _topicData(topicId);
       const item = { id: uid(), createdAt: Date.now(), folderId: null, ...itemData };
       topic.items.push(item);
-      _save(data);
+      await _save(data);
       return item;
     },
 
-    /** Bestehendes Item aktualisieren */
-    updateItem(topicId, itemId, patch) {
-      const { data, topic } = _topicData(topicId);
+    async updateItem(topicId, itemId, patch) {
+      const { data, topic } = await _topicData(topicId);
       const idx = topic.items.findIndex(i => i.id === itemId);
       if (idx === -1) return;
       topic.items[idx] = { ...topic.items[idx], ...patch };
-      _save(data);
+      await _save(data);
       return topic.items[idx];
     },
 
-    /** Item löschen (Ordner: löscht rekursiv alle Kinder) */
-    deleteItem(topicId, itemId) {
-      const { data, topic } = _topicData(topicId);
+    async deleteItem(topicId, itemId) {
+      const { data, topic } = await _topicData(topicId);
       const item = topic.items.find(i => i.id === itemId);
       if (!item) return;
       const toDelete = new Set([itemId]);
       if (item.type === "folder") {
-        // Rekursiv Kinder sammeln
         let changed = true;
         while (changed) {
           changed = false;
@@ -92,12 +131,11 @@ const Store = (() => {
         }
       }
       topic.items = topic.items.filter(i => !toDelete.has(i.id));
-      _save(data);
+      await _save(data);
     },
 
-    /** Statistik für ein Topic (für Übersicht) */
-    stats(topicId) {
-      const { topic } = _topicData(topicId);
+    async stats(topicId) {
+      const { topic } = await _topicData(topicId);
       const all = topic.items;
       return {
         flashcards: all.filter(i => i.type === "flashcard").length,
@@ -105,6 +143,27 @@ const Store = (() => {
         images:     all.filter(i => i.type === "image").length,
         folders:    all.filter(i => i.type === "folder").length,
       };
+    },
+
+    /** Alle Rohdaten lesen (für Backup-Export) */
+    async raw() {
+      return await _load();
+    },
+
+    /** Alle Rohdaten schreiben (für Backup-Import) */
+    async rawSet(data) {
+      _cache = null;
+      await _save(data);
+    },
+
+    /** Reihenfolge der Items eines Folders neu setzen */
+    async reorderItems(topicId, folderId, orderedIds) {
+      const { data, topic } = await _topicData(topicId);
+      orderedIds.forEach((id, idx) => {
+        const item = topic.items.find(i => i.id === id);
+        if (item) item.order = idx;
+      });
+      await _save(data);
     },
   };
 })();

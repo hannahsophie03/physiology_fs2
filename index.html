@@ -100,13 +100,44 @@
 
   <!-- Note editor -->
   <div id="modal-note" class="modal hidden">
-    <div class="modal-box">
+    <div class="modal-box" style="max-width:560px">
       <div class="modal-title" id="note-modal-title">Neue Notiz</div>
       <input id="note-title-input" placeholder="Titel…" style="margin-bottom:10px" />
-      <textarea id="note-body" placeholder="Text…" rows="6"></textarea>
+      <textarea id="note-body" placeholder="Text…" rows="5"></textarea>
+
+      <div class="note-img-section">
+        <div class="field-label" style="margin-top:12px;margin-bottom:6px">Bilder in der Notiz</div>
+        <div id="note-img-list"></div>
+        <button type="button" id="note-add-img-btn" class="note-add-img-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Bild hinzufügen
+        </button>
+        <input type="file" id="note-img-file" accept="image/*" style="display:none" />
+      </div>
+
       <div class="modal-footer">
         <button class="modal-close" id="note-cancel">Abbrechen</button>
         <button class="btn-save" id="note-save">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image edit -->
+  <div id="modal-image-edit" class="modal hidden">
+    <div class="modal-box" style="max-width:460px">
+      <div class="modal-title">Bild bearbeiten</div>
+      <label class="field-label">Titel</label>
+      <input id="img-edit-title" placeholder="Bildtitel…" style="margin-bottom:14px" />
+      <label class="field-label">Bild ersetzen (optional)</label>
+      <div id="img-edit-drop-zone">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span>Klicken oder neues Bild hineinziehen</span>
+        <input type="file" id="img-edit-file" accept="image/*" />
+      </div>
+      <img id="img-edit-preview" class="hidden" alt="Vorschau" style="margin-top:10px;width:100%;max-height:160px;object-fit:contain;border-radius:6px;border:0.5px solid var(--border-md)" />
+      <div class="modal-footer">
+        <button class="modal-close" id="img-edit-cancel">Abbrechen</button>
+        <button class="btn-save" id="img-edit-save">Speichern</button>
       </div>
     </div>
   </div>
@@ -160,6 +191,20 @@
         </div>
       </div>
       <div class="fc-zoom-hint">Klicken zum Umdrehen</div>
+    </div>
+  </div>
+
+  <!-- Note Detail View -->
+  <div id="modal-note-view" class="modal hidden">
+    <div class="note-view-box">
+      <div class="note-view-header">
+        <h2 id="note-view-title"></h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button id="note-view-edit" class="icon-btn" title="Bearbeiten">✎</button>
+          <button id="note-view-close" class="note-view-close-btn">✕</button>
+        </div>
+      </div>
+      <div id="note-view-body"></div>
     </div>
   </div>
 
