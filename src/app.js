@@ -29,8 +29,11 @@ let noteImages    = [];         // [{dataUrl, caption}] — temporär im Notiz-M
 document.addEventListener("DOMContentLoaded", () => {
   buildNav();
   bindModals();
+  bindFormatToolbars();
   showHome();
   bindBackup();
+  startAutoBackup();
+  bindEsc();
   if (Store.isServerMode()) {
     const badge = document.createElement("span");
     badge.id = "server-badge";
@@ -40,7 +43,170 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// ---------- Backup ----------
+// ---------- ESC zum Schließen ----------
+function bindEsc() {
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    // Schließe das zuletzt geöffnete sichtbare Modal
+    const open = [...document.querySelectorAll(".modal:not(.hidden)")];
+    if (open.length) closeModal(open[open.length - 1].id);
+  });
+}
+
+// ---------- Auto-Backup ----------
+const AUTO_BACKUP_INTERVAL_MS = 10 * 60 * 1000; // 10 Minuten
+
+function startAutoBackup() {
+  setInterval(async () => {
+    const data = await Store.raw();
+    const hasContent = Object.values(data).some(t => t.items && t.items.length > 0);
+    if (!hasContent) return; // nichts zu sichern
+
+    if (Store.isServerMode()) {
+      // Server-Modus: POST an eigenen Backup-Endpoint
+      try {
+        await fetch("/api/backup", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(data),
+        });
+        showAutoBackupToast();
+      } catch { /* Server nicht erreichbar — still ignorieren */ }
+    } else {
+      // Datei-Modus: automatisch runterladen
+      const ts   = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 16);
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url; a.download = `physio-auto-${ts}.json`;
+      a.click(); URL.revokeObjectURL(url);
+      showAutoBackupToast();
+    }
+  }, AUTO_BACKUP_INTERVAL_MS);
+}
+
+function showAutoBackupToast() {
+  let toast = document.getElementById("backup-toast");
+  if (!toast) {
+    toast = document.createElement("div");
+    toast.id = "backup-toast";
+    document.body.appendChild(toast);
+  }
+  toast.textContent = "✓ Auto-Backup gespeichert";
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 3000);
+}
+
+// ---------- Markdown + LaTeX Rendering ----------
+
+/**
+ * Wandelt Markdown-Syntax und LaTeX in HTML um.
+ * Unterstützt: **fett**, *kursiv*, __unterstrichen__, $inline$, $$block$$
+ */
+function renderContent(raw) {
+  if (!raw) return "";
+
+  // LaTeX-Blöcke schützen (Platzhalter), damit Markdown-Regex sie nicht zerstört
+  const latexBlocks  = [];
+  const latexInlines = [];
+
+  let text = raw
+    // $$...$$ Block
+    .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => {
+      latexBlocks.push(expr);
+      return `%%LATEXBLOCK${latexBlocks.length - 1}%%`;
+    })
+    // $...$ inline
+    .replace(/\$([^\n$]+?)\$/g, (_, expr) => {
+      latexInlines.push(expr);
+      return `%%LATEXINLINE${latexInlines.length - 1}%%`;
+    });
+
+  // Markdown
+  text = text
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")  // HTML escapen
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")   // **fett**
+    .replace(/\*(.+?)\*/g,     "<em>$1</em>")            // *kursiv*
+    .replace(/__(.+?)__/g,     "<u>$1</u>")              // __unterstrichen__
+    .replace(/\n/g, "<br>");                             // Zeilenumbrüche
+
+  // LaTeX wieder einsetzen und rendern
+  latexBlocks.forEach((expr, i) => {
+    let rendered = "";
+    try { rendered = katex.renderToString(expr, { displayMode: true, throwOnError: false }); }
+    catch { rendered = `<code>$$${expr}$$</code>`; }
+    text = text.replace(`%%LATEXBLOCK${i}%%`, rendered);
+  });
+  latexInlines.forEach((expr, i) => {
+    let rendered = "";
+    try { rendered = katex.renderToString(expr, { displayMode: false, throwOnError: false }); }
+    catch { rendered = `<code>$${expr}$</code>`; }
+    text = text.replace(`%%LATEXINLINE${i}%%`, rendered);
+  });
+
+  return text;
+}
+
+// ---------- Format-Toolbar ----------
+function bindFormatToolbars() {
+  document.querySelectorAll(".format-toolbar").forEach(toolbar => {
+    // Zugehöriges Textarea ermitteln: data-for oder nächstes textarea-Geschwisterelement
+    const targetId = toolbar.dataset.for;
+    const getTextarea = () => targetId
+      ? document.getElementById(targetId)
+      : toolbar.nextElementSibling;
+
+    toolbar.querySelectorAll(".fmt-btn").forEach(btn => {
+      btn.addEventListener("mousedown", e => {
+        e.preventDefault(); // Fokus im Textarea behalten
+        const ta  = getTextarea();
+        if (!ta) return;
+        const fmt = btn.dataset.fmt;
+        applyFormat(ta, fmt);
+      });
+    });
+  });
+
+  // Tastaturkürzel im Notiz-Body
+  document.getElementById("note-body").addEventListener("keydown", e => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === "b") { e.preventDefault(); applyFormat(e.target, "bold"); }
+      if (e.key === "i") { e.preventDefault(); applyFormat(e.target, "italic"); }
+      if (e.key === "u") { e.preventDefault(); applyFormat(e.target, "underline"); }
+    }
+  });
+}
+
+function applyFormat(textarea, fmt) {
+  const start = textarea.selectionStart;
+  const end   = textarea.selectionEnd;
+  const sel   = textarea.value.slice(start, end);
+  const before = textarea.value.slice(0, start);
+  const after  = textarea.value.slice(end);
+
+  const formats = {
+    "bold":         { wrap: ["**", "**"],   placeholder: "fetter Text" },
+    "italic":       { wrap: ["*",  "*"],    placeholder: "kursiver Text" },
+    "underline":    { wrap: ["__", "__"],   placeholder: "unterstrichener Text" },
+    "latex-inline": { wrap: ["$",  "$"],    placeholder: "E = mc^2" },
+    "latex-block":  { wrap: ["$$\n", "\n$$"], placeholder: "\\frac{d}{dx}" },
+  };
+
+  const f = formats[fmt];
+  if (!f) return;
+
+  const content  = sel || f.placeholder;
+  const inserted = f.wrap[0] + content + f.wrap[1];
+  textarea.value = before + inserted + after;
+
+  // Selektion auf den Inhalt setzen (ohne Wrapper)
+  const newStart = start + f.wrap[0].length;
+  const newEnd   = newStart + content.length;
+  textarea.setSelectionRange(newStart, newEnd);
+  textarea.focus();
+}
+
+
 function bindBackup() {
   document.getElementById("btn-export").addEventListener("click", exportBackup);
   document.getElementById("btn-import").addEventListener("click", () => document.getElementById("import-file-input").click());
@@ -220,8 +386,8 @@ function makeFlashcard(item) {
   const card = document.createElement("div");
   card.className = "flashcard";
   card.innerHTML = `<div class="flashcard-inner">
-    <div class="flashcard-front"><div class="fc-label">Frage</div><div class="fc-text">${escHtml(item.front)}</div><div class="fc-hint">Klicken zum Umdrehen</div></div>
-    <div class="flashcard-back"><div class="fc-label">Antwort</div><div class="fc-text">${escHtml(item.back)}</div></div>
+    <div class="flashcard-front"><div class="fc-label">Frage</div><div class="fc-text">${renderContent(item.front)}</div><div class="fc-hint">Klicken zum Umdrehen</div></div>
+    <div class="flashcard-back"><div class="fc-label">Antwort</div><div class="fc-text">${renderContent(item.back)}</div></div>
   </div>`;
   card.addEventListener("click", () => card.classList.toggle("flipped"));
 
@@ -497,7 +663,7 @@ function openNoteView(item) {
   if (item.body) {
     const text = document.createElement("div");
     text.className = "note-view-text";
-    text.textContent = item.body;
+    text.innerHTML = renderContent(item.body);
     body.appendChild(text);
   }
 
@@ -537,8 +703,8 @@ function openFlashcardZoom(item) {
   const overlay = document.getElementById("fc-zoom-overlay");
   const inner   = overlay.querySelector(".fc-zoom-inner");
   inner.classList.remove("flipped");
-  overlay.querySelector(".fc-zoom-front .fc-text").textContent = item.front;
-  overlay.querySelector(".fc-zoom-back .fc-text").textContent  = item.back;
+  overlay.querySelector(".fc-zoom-front .fc-text").innerHTML = renderContent(item.front);
+  overlay.querySelector(".fc-zoom-back .fc-text").innerHTML  = renderContent(item.back);
   overlay.querySelector(".fc-zoom-hint").textContent = "Klicken zum Umdrehen";
   inner.onclick = () => {
     inner.classList.toggle("flipped");

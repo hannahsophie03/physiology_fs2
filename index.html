@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Humanphysiologie</title>
   <link rel="stylesheet" href="src/style.css" />
+  <!-- KaTeX für LaTeX-Rendering -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" />
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 </head>
 <body>
 
@@ -88,9 +92,23 @@
     <div class="modal-box">
       <div class="modal-title" id="fc-modal-title">Neue Karteikarte</div>
       <label class="field-label">Vorderseite</label>
-      <textarea id="fc-front" placeholder="Frage oder Begriff…" rows="3"></textarea>
+      <div class="format-toolbar" data-for="fc-front">
+        <button type="button" class="fmt-btn" data-fmt="bold"><b>B</b></button>
+        <button type="button" class="fmt-btn" data-fmt="italic"><i>I</i></button>
+        <button type="button" class="fmt-btn" data-fmt="underline"><u>U</u></button>
+        <div class="fmt-sep"></div>
+        <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX $…$">∑</button>
+      </div>
+      <textarea id="fc-front" placeholder="Frage oder Begriff… ($LaTeX$ möglich)" rows="3"></textarea>
       <label class="field-label" style="margin-top:12px">Rückseite</label>
-      <textarea id="fc-back" placeholder="Antwort oder Erklärung…" rows="4"></textarea>
+      <div class="format-toolbar" data-for="fc-back">
+        <button type="button" class="fmt-btn" data-fmt="bold"><b>B</b></button>
+        <button type="button" class="fmt-btn" data-fmt="italic"><i>I</i></button>
+        <button type="button" class="fmt-btn" data-fmt="underline"><u>U</u></button>
+        <div class="fmt-sep"></div>
+        <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX $…$">∑</button>
+      </div>
+      <textarea id="fc-back" placeholder="Antwort oder Erklärung… ($LaTeX$ möglich)" rows="4"></textarea>
       <div class="modal-footer">
         <button class="modal-close" id="fc-cancel">Abbrechen</button>
         <button class="btn-save" id="fc-save">Speichern</button>
@@ -103,7 +121,19 @@
     <div class="modal-box" style="max-width:560px">
       <div class="modal-title" id="note-modal-title">Neue Notiz</div>
       <input id="note-title-input" placeholder="Titel…" style="margin-bottom:10px" />
-      <textarea id="note-body" placeholder="Text…" rows="5"></textarea>
+
+      <div class="format-toolbar">
+        <button type="button" class="fmt-btn" data-fmt="bold"     title="Fett (Strg+B)"><b>B</b></button>
+        <button type="button" class="fmt-btn" data-fmt="italic"   title="Kursiv (Strg+I)"><i>I</i></button>
+        <button type="button" class="fmt-btn" data-fmt="underline"title="Unterstreichen (Strg+U)"><u>U</u></button>
+        <div class="fmt-sep"></div>
+        <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX inline  $…$">∑</button>
+        <button type="button" class="fmt-btn" data-fmt="latex-block"  title="LaTeX block $$…$$">∫</button>
+        <div class="fmt-sep"></div>
+        <span class="fmt-hint">**fett** &nbsp;*kursiv* &nbsp;__unter__</span>
+      </div>
+
+      <textarea id="note-body" placeholder="Text… Markdown und $LaTeX$ werden beim Anzeigen gerendert." rows="7"></textarea>
 
       <div class="note-img-section">
         <div class="field-label" style="margin-top:12px;margin-bottom:6px">Bilder in der Notiz</div>

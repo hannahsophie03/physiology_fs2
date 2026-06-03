@@ -12,15 +12,14 @@ const http = require("http");
 const fs   = require("fs");
 const path = require("path");
 
-const PORT      = 3000;
-const DATA_FILE = path.join(__dirname, "data.json");
-const ROOT      = __dirname;
+const PORT        = 3000;
+const DATA_FILE   = path.join(__dirname, "data.json");
+const BACKUP_DIR  = path.join(__dirname, "backups");
+const ROOT        = __dirname;
 
-// data.json anlegen falls nicht vorhanden
-if (!fs.existsSync(DATA_FILE)) {
-  fs.writeFileSync(DATA_FILE, "{}", "utf8");
-  console.log("📄 data.json angelegt.");
-}
+// data.json und backups/ anlegen falls nicht vorhanden
+if (!fs.existsSync(DATA_FILE))  { fs.writeFileSync(DATA_FILE, "{}", "utf8"); console.log("📄 data.json angelegt."); }
+if (!fs.existsSync(BACKUP_DIR)) { fs.mkdirSync(BACKUP_DIR); console.log("📁 backups/ Ordner angelegt."); }
 
 // MIME-Typen
 const MIME = {
@@ -46,6 +45,36 @@ const server = http.createServer((req, res) => {
     } catch {
       res.writeHead(500); res.end("Lesefehler");
     }
+    return;
+  }
+
+  // --- API: Auto-Backup speichern ---
+  if (method === "POST" && url === "/api/backup") {
+    let body = "";
+    req.on("data", chunk => body += chunk);
+    req.on("end", () => {
+      try {
+        JSON.parse(body);
+        const ts   = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 16);
+        const file = path.join(BACKUP_DIR, `auto-${ts}.json`);
+        const pretty = JSON.stringify(JSON.parse(body), null, 2);
+        fs.writeFileSync(file, pretty, "utf8");
+
+        // Nur die letzten 20 Auto-Backups behalten
+        const files = fs.readdirSync(BACKUP_DIR)
+          .filter(f => f.startsWith("auto-"))
+          .sort();
+        if (files.length > 20) {
+          files.slice(0, files.length - 20).forEach(f =>
+            fs.unlinkSync(path.join(BACKUP_DIR, f))
+          );
+        }
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end('{"ok":true}');
+      } catch {
+        res.writeHead(400); res.end("Fehler beim Backup");
+      }
+    });
     return;
   }
 

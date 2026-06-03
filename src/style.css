@@ -911,3 +911,85 @@ textarea { resize: vertical; line-height: 1.55; }
   width: 100%;
   height: 100%;
 }
+
+/* ============================================================
+   FORMAT TOOLBAR
+   ============================================================ */
+.format-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 6px;
+  background: var(--bg-secondary);
+  border: 0.5px solid var(--border-md);
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  flex-wrap: wrap;
+}
+.format-toolbar + textarea {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.fmt-btn {
+  padding: 3px 8px;
+  font-size: 13px;
+  border: 0.5px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1.4;
+  transition: all 0.12s;
+}
+.fmt-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text);
+  border-color: var(--border-md);
+}
+.fmt-sep {
+  width: 0.5px;
+  height: 16px;
+  background: var(--border-md);
+  margin: 0 3px;
+}
+.fmt-hint {
+  font-size: 11px;
+  color: var(--text-hint);
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   AUTO-BACKUP TOAST
+   ============================================================ */
+#backup-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: #2f9e44;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  z-index: 9999;
+}
+#backup-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================================
+   RENDERED MARKDOWN IN NOTIZEN / KARTEIKARTEN
+   ============================================================ */
+.note-view-text strong, .fc-text strong { font-weight: 600; }
+.note-view-text em,     .fc-text em     { font-style: italic; }
+.note-view-text u,      .fc-text u      { text-decoration: underline; }
+
+/* KaTeX display blocks nicht zu breit werden lassen */
+.katex-display { overflow-x: auto; max-width: 100%; }
