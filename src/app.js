@@ -101,51 +101,119 @@ function showAutoBackupToast() {
 // ---------- Markdown + LaTeX Rendering ----------
 
 /**
- * Wandelt Markdown-Syntax und LaTeX in HTML um.
- * Unterstützt: **fett**, *kursiv*, __unterstrichen__, $inline$, $$block$$
+ * Rendert Markdown + LaTeX + Tabellen zu HTML.
+ * Verarbeitet den Text zeilenweise um Kollisionen zwischen
+ * Tabellen, LaTeX und Markdown zuverlässig zu vermeiden.
  */
 function renderContent(raw) {
   if (!raw) return "";
+  try {
+    // Schritt 1: Text in Blöcke aufteilen (Tabellen vs. normaler Text)
+    const blocks = splitIntoBlocks(raw);
 
-  // LaTeX-Blöcke schützen (Platzhalter), damit Markdown-Regex sie nicht zerstört
-  const latexBlocks  = [];
-  const latexInlines = [];
+    return blocks.map(block => {
+      if (block.type === "table") return renderTableBlock(block.lines);
+      return renderTextBlock(block.text);
+    }).join("");
+  } catch(e) {
+    // Fallback: einfaches Escaping, niemals einen Fehler nach außen werfen
+    console.error("renderContent error:", e);
+    return raw.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
+  }
+}
 
-  let text = raw
-    // $$...$$ Block
-    .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => {
-      latexBlocks.push(expr);
-      return `%%LATEXBLOCK${latexBlocks.length - 1}%%`;
-    })
-    // $...$ inline
-    .replace(/\$([^\n$]+?)\$/g, (_, expr) => {
-      latexInlines.push(expr);
-      return `%%LATEXINLINE${latexInlines.length - 1}%%`;
-    });
+/** Trennt rohen Text in Tabellen-Blöcke und Text-Blöcke */
+function splitIntoBlocks(raw) {
+  const lines  = raw.split("\n");
+  const blocks = [];
+  let textAcc  = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    // Tabelle beginnt wenn aktuelle Zeile Pipes hat UND nächste Zeile eine Trennzeile ist
+    if (
+      i + 1 < lines.length &&
+      /^\|.+\|/.test(lines[i].trim()) &&
+      /^\|[\s\-:|]+\|$/.test(lines[i + 1].trim())
+    ) {
+      // Bisherigen Text-Akkumulator flushen
+      if (textAcc.length) { blocks.push({ type: "text", text: textAcc.join("\n") }); textAcc = []; }
+      // Alle Zeilen der Tabelle sammeln
+      const tableLines = [];
+      while (i < lines.length && /^\|/.test(lines[i].trim())) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      blocks.push({ type: "table", lines: tableLines });
+    } else {
+      textAcc.push(lines[i]);
+      i++;
+    }
+  }
+  if (textAcc.length) blocks.push({ type: "text", text: textAcc.join("\n") });
+  return blocks;
+}
+
+/** Rendert einen normalen Text-Block: HTML-escape → Markdown → LaTeX */
+function renderTextBlock(text) {
+  // LaTeX schützen
+  const store = [];
+  text = text
+    .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => { store.push({ mode: true,  expr }); return `\x00LATEX${store.length-1}\x00`; })
+    .replace(/\$([^\n$]+?)\$/g,     (_, expr) => { store.push({ mode: false, expr }); return `\x00LATEX${store.length-1}\x00`; });
+
+  // HTML escapen
+  text = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
   // Markdown
   text = text
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")  // HTML escapen
-    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")   // **fett**
-    .replace(/\*(.+?)\*/g,     "<em>$1</em>")            // *kursiv*
-    .replace(/__(.+?)__/g,     "<u>$1</u>")              // __unterstrichen__
-    .replace(/\n/g, "<br>");                             // Zeilenumbrüche
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\*(.+?)\*/g,     "<em>$1</em>")
+    .replace(/__(.+?)__/g,     "<u>$1</u>")
+    .replace(/\n/g,            "<br>");
 
-  // LaTeX wieder einsetzen und rendern
-  latexBlocks.forEach((expr, i) => {
-    let rendered = "";
-    try { rendered = katex.renderToString(expr, { displayMode: true, throwOnError: false }); }
-    catch { rendered = `<code>$$${expr}$$</code>`; }
-    text = text.replace(`%%LATEXBLOCK${i}%%`, rendered);
-  });
-  latexInlines.forEach((expr, i) => {
-    let rendered = "";
-    try { rendered = katex.renderToString(expr, { displayMode: false, throwOnError: false }); }
-    catch { rendered = `<code>$${expr}$</code>`; }
-    text = text.replace(`%%LATEXINLINE${i}%%`, rendered);
+  // LaTeX einsetzen
+  text = text.replace(/\x00LATEX(\d+)\x00/g, (_, idx) => {
+    const { mode, expr } = store[parseInt(idx)];
+    try { return katex.renderToString(expr, { displayMode: mode, throwOnError: false }); }
+    catch { return mode ? `<code>$$${expr}$$</code>` : `<code>$${expr}$</code>`; }
   });
 
   return text;
+}
+
+/** Rendert einen Tabellen-Block zu HTML */
+function renderTableBlock(lines) {
+  const header = parseTableRow(lines[0]);
+  const align  = lines[1] ? parseAlignRow(lines[1]) : [];
+  const rows   = lines.slice(2).map(parseTableRow);
+
+  const cell = (tag, content, i) => {
+    const a = align[i] || "left";
+    return `<${tag} style="text-align:${a}">${renderTextBlock(content)}</${tag}>`;
+  };
+
+  let html = '<div class="md-table-wrap"><table class="md-table"><thead><tr>';
+  header.forEach((c, i) => { html += cell("th", c, i); });
+  html += "</tr></thead><tbody>";
+  rows.forEach(row => {
+    html += "<tr>";
+    row.forEach((c, i) => { html += cell("td", c, i); });
+    html += "</tr>";
+  });
+  return html + "</tbody></table></div>";
+}
+
+function parseTableRow(line) {
+  return line.replace(/^\||\|$/g, "").split("|").map(c => c.trim());
+}
+function parseAlignRow(line) {
+  return line.replace(/^\||\|$/g, "").split("|").map(c => {
+    c = c.trim();
+    if (c.startsWith(":") && c.endsWith(":")) return "center";
+    if (c.endsWith(":")) return "right";
+    return "left";
+  });
 }
 
 // ---------- Format-Toolbar ----------
@@ -709,7 +777,8 @@ let noteViewItem = null;
 
 function openNoteView(item) {
   noteViewItem = item;
-  document.getElementById("note-view-title").textContent = item.title || "Notiz";
+  const titleEl = document.getElementById("note-view-title");
+  titleEl.innerHTML = renderContent(item.title || "Notiz");
 
   const body = document.getElementById("note-view-body");
   body.innerHTML = "";

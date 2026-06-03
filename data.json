@@ -129,6 +129,15 @@
         "folderId": null,
         "type": "folder",
         "name": "Transportphysiologie"
+      },
+      {
+        "id": "mpy2ewfsii26",
+        "createdAt": 1780491072952,
+        "folderId": "mpy0w6o168qe",
+        "type": "note",
+        "title": "Aktiv vs. passiv",
+        "body": "| Aktiv| Passiv|\n|---------|---------|\n| energieabhängig| energieunabhängig |\n| gegen KG| mit KG|",
+        "images": []
       }
     ]
   }
