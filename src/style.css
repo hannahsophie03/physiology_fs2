@@ -993,3 +993,89 @@ textarea { resize: vertical; line-height: 1.55; }
 
 /* KaTeX display blocks nicht zu breit werden lassen */
 .katex-display { overflow-x: auto; max-width: 100%; }
+
+/* ============================================================
+   FLASHCARD — BILDER
+   ============================================================ */
+
+/* Bild auf kleiner Karte (Grid-Ansicht) */
+.fc-card-img {
+  width: 100%;
+  max-height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-top: 8px;
+  border: 0.5px solid var(--border-md);
+  display: block;
+}
+
+/* Höhe anpassen wenn Bild vorhanden */
+.flashcard:has(.fc-card-img) { height: 220px; }
+
+/* Bild im Zoom-Overlay */
+.fc-zoom-img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  margin-top: 12px;
+  border: 0.5px solid var(--border-md);
+  cursor: zoom-in;
+  display: block;
+  transition: opacity 0.15s;
+}
+.fc-zoom-img:hover { opacity: 0.88; }
+
+/* Upload-Zeile im Editor */
+.fc-img-upload-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.fc-img-add-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 0.5px solid var(--border-md);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.fc-img-add-btn:hover { background: var(--bg-tertiary); color: var(--text); }
+
+.fc-img-preview-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-start;
+}
+.fc-img-preview-wrap img {
+  height: 60px;
+  width: auto;
+  max-width: 160px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-md);
+}
+.fc-img-remove-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  border: none;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

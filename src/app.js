@@ -22,8 +22,9 @@ let activeTopic   = null;
 let activeFolder  = null;
 let editingItemId = null;
 let pendingImgUrl = null;
-let pendingEditImgUrl = null;   // für Bild-bearbeiten
-let noteImages    = [];         // [{dataUrl, caption}] — temporär im Notiz-Modal
+let pendingEditImgUrl = null;
+let noteImages    = [];
+let fcImages      = { front: null, back: null }; // { dataUrl } | null pro Seite
 
 // ---------- Init ----------
 document.addEventListener("DOMContentLoaded", () => {
@@ -383,11 +384,23 @@ function makeFlashcard(item) {
   dragH.className = "drag-handle fc-drag-handle"; dragH.textContent = "⠿";
   wrapper.appendChild(dragH);
 
+  const frontImg = item.frontImage ? `<img class="fc-card-img" src="${item.frontImage}" alt="" />` : "";
+  const backImg  = item.backImage  ? `<img class="fc-card-img" src="${item.backImage}"  alt="" />` : "";
+
   const card = document.createElement("div");
   card.className = "flashcard";
   card.innerHTML = `<div class="flashcard-inner">
-    <div class="flashcard-front"><div class="fc-label">Frage</div><div class="fc-text">${renderContent(item.front)}</div><div class="fc-hint">Klicken zum Umdrehen</div></div>
-    <div class="flashcard-back"><div class="fc-label">Antwort</div><div class="fc-text">${renderContent(item.back)}</div></div>
+    <div class="flashcard-front">
+      <div class="fc-label">Frage</div>
+      <div class="fc-text">${renderContent(item.front)}</div>
+      ${frontImg}
+      <div class="fc-hint">Klicken zum Umdrehen</div>
+    </div>
+    <div class="flashcard-back">
+      <div class="fc-label">Antwort</div>
+      <div class="fc-text">${renderContent(item.back)}</div>
+      ${backImg}
+    </div>
   </div>`;
   card.addEventListener("click", () => card.classList.toggle("flipped"));
 
@@ -491,6 +504,7 @@ function bindModals() {
   // Flashcard
   document.getElementById("fc-cancel").addEventListener("click", () => closeModal("modal-flashcard"));
   document.getElementById("fc-save").addEventListener("click", saveFlashcard);
+  bindFcImageUpload();
 
   // Note
   document.getElementById("note-cancel").addEventListener("click", () => closeModal("modal-note"));
@@ -565,25 +579,66 @@ function renderNoteImageList() {
 // ---------- Flashcard modal ----------
 function openFlashcardNew() {
   editingItemId = null;
+  fcImages = { front: null, back: null };
   document.getElementById("fc-modal-title").textContent = "Neue Karteikarte";
   document.getElementById("fc-front").value = "";
   document.getElementById("fc-back").value = "";
+  renderFcImagePreview("front", null);
+  renderFcImagePreview("back", null);
   openModal("modal-flashcard");
 }
 function openFlashcardEdit(item) {
   editingItemId = item.id;
+  fcImages = { front: item.frontImage || null, back: item.backImage || null };
   document.getElementById("fc-modal-title").textContent = "Karteikarte bearbeiten";
   document.getElementById("fc-front").value = item.front;
   document.getElementById("fc-back").value = item.back;
+  renderFcImagePreview("front", fcImages.front);
+  renderFcImagePreview("back",  fcImages.back);
   openModal("modal-flashcard");
 }
 async function saveFlashcard() {
   const front = document.getElementById("fc-front").value.trim();
   const back  = document.getElementById("fc-back").value.trim();
-  if (!front || !back) return;
-  if (editingItemId) await Store.updateItem(activeTopic, editingItemId, { front, back });
-  else await Store.addItem(activeTopic, { type: "flashcard", front, back, folderId: activeFolder });
+  if (!front && !back) return;
+  const patch = { front, back, frontImage: fcImages.front, backImage: fcImages.back };
+  if (editingItemId) await Store.updateItem(activeTopic, editingItemId, patch);
+  else await Store.addItem(activeTopic, { type: "flashcard", folderId: activeFolder, ...patch });
   closeModal("modal-flashcard"); renderGrid();
+}
+
+// ---------- Flashcard Bild-Upload ----------
+function bindFcImageUpload() {
+  ["front", "back"].forEach(side => {
+    const btn  = document.getElementById(`fc-${side}-img-btn`);
+    const inp  = document.getElementById(`fc-${side}-img-file`);
+    const rmv  = document.getElementById(`fc-${side}-img-remove`);
+
+    btn.addEventListener("click", () => inp.click());
+    inp.addEventListener("change", () => {
+      if (inp.files[0]) readFileAsDataUrl(inp.files[0], url => {
+        fcImages[side] = url;
+        renderFcImagePreview(side, url);
+        inp.value = "";
+      });
+    });
+    rmv.addEventListener("click", () => {
+      fcImages[side] = null;
+      renderFcImagePreview(side, null);
+    });
+  });
+}
+
+function renderFcImagePreview(side, url) {
+  const wrap = document.getElementById(`fc-${side}-img-preview`);
+  const img  = document.getElementById(`fc-${side}-img`);
+  if (url) {
+    img.src = url;
+    wrap.classList.remove("hidden");
+  } else {
+    img.src = "";
+    wrap.classList.add("hidden");
+  }
 }
 
 // ---------- Note modal ----------
@@ -703,9 +758,33 @@ function openFlashcardZoom(item) {
   const overlay = document.getElementById("fc-zoom-overlay");
   const inner   = overlay.querySelector(".fc-zoom-inner");
   inner.classList.remove("flipped");
+
+  // Text
   overlay.querySelector(".fc-zoom-front .fc-text").innerHTML = renderContent(item.front);
   overlay.querySelector(".fc-zoom-back .fc-text").innerHTML  = renderContent(item.back);
   overlay.querySelector(".fc-zoom-hint").textContent = "Klicken zum Umdrehen";
+
+  // Bilder in Zoom
+  ["front", "back"].forEach(side => {
+    const imgUrl  = side === "front" ? item.frontImage : item.backImage;
+    const face    = overlay.querySelector(`.fc-zoom-${side}`);
+    // Altes Bild entfernen
+    face.querySelector(".fc-zoom-img")?.remove();
+    if (imgUrl) {
+      const img = document.createElement("img");
+      img.className = "fc-zoom-img";
+      img.src = imgUrl;
+      img.title = "Klicken zum Vergrößern";
+      img.addEventListener("click", e => {
+        e.stopPropagation();
+        document.getElementById("lightbox-img").src = imgUrl;
+        document.getElementById("lightbox-caption").textContent = "";
+        openModal("lightbox");
+      });
+      face.appendChild(img);
+    }
+  });
+
   inner.onclick = () => {
     inner.classList.toggle("flipped");
     overlay.querySelector(".fc-zoom-hint").textContent =
