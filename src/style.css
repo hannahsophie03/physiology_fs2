@@ -1115,3 +1115,123 @@ textarea { resize: vertical; line-height: 1.55; }
   color: var(--text);
 }
 .md-table tbody tr:hover { background: var(--bg-secondary); }
+
+/* ============================================================
+   KACHELFARBE — Color Picker
+   ============================================================ */
+.color-btn { color: var(--text-muted); }
+.color-btn:hover { color: var(--text); }
+
+.color-picker-popover {
+  position: absolute;
+  z-index: 1000;
+  background: var(--bg);
+  border: 0.5px solid var(--border-md);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 210px;
+}
+
+.color-preset-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.color-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.color-dot:hover { transform: scale(1.15); border-color: var(--border2); }
+.color-dot.active { border-color: var(--accent); border-width: 2px; }
+
+.color-custom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-top: 4px;
+  border-top: 0.5px solid var(--border);
+}
+.color-custom-row input[type="color"] {
+  width: 32px;
+  height: 24px;
+  padding: 1px 2px;
+  border-radius: var(--radius-sm);
+  border: 0.5px solid var(--border-md);
+  cursor: pointer;
+  background: none;
+}
+
+/* ============================================================
+   MARKDOWN LISTEN
+   ============================================================ */
+.md-list {
+  margin: 4px 0 4px 1.4em;
+  padding: 0;
+}
+.md-list li {
+  margin: 2px 0;
+  line-height: 1.6;
+}
+
+/* ============================================================
+   AUTOSAVE DRAFT BANNER
+   ============================================================ */
+.draft-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--accent-light);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.draft-discard {
+  background: none;
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.draft-discard:hover { background: var(--accent); color: #fff; }
+
+/* ============================================================
+   TEXTFARBE — Toolbar Color Button
+   ============================================================ */
+.fmt-color-btn {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  position: relative;
+}
+.fmt-color-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 4px;
+  border-radius: 2px;
+  background: transparent;
+  border: 0.5px solid var(--border-md);
+  flex-shrink: 0;
+}

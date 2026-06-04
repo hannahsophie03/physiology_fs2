@@ -98,6 +98,11 @@
         <button type="button" class="fmt-btn" data-fmt="italic"><i>I</i></button>
         <button type="button" class="fmt-btn" data-fmt="underline"><u>U</u></button>
         <div class="fmt-sep"></div>
+        <button type="button" class="fmt-btn fmt-color-btn" data-fmt="color" title="Textfarbe">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="16" font-size="14" fill="currentColor" stroke="none" font-family="serif" font-weight="bold">A</text><rect x="3" y="18" width="14" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
+          <span class="fmt-color-swatch" id="fc-front-color-swatch"></span>
+        </button>
+        <div class="fmt-sep"></div>
         <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX $…$">∑</button>
       </div>
       <textarea id="fc-front" placeholder="Frage oder Begriff… ($LaTeX$ möglich)" rows="3"></textarea>
@@ -118,6 +123,11 @@
         <button type="button" class="fmt-btn" data-fmt="bold"><b>B</b></button>
         <button type="button" class="fmt-btn" data-fmt="italic"><i>I</i></button>
         <button type="button" class="fmt-btn" data-fmt="underline"><u>U</u></button>
+        <div class="fmt-sep"></div>
+        <button type="button" class="fmt-btn fmt-color-btn" data-fmt="color" title="Textfarbe">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="16" font-size="14" fill="currentColor" stroke="none" font-family="serif" font-weight="bold">A</text><rect x="3" y="18" width="14" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
+          <span class="fmt-color-swatch" id="fc-back-color-swatch"></span>
+        </button>
         <div class="fmt-sep"></div>
         <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX $…$">∑</button>
       </div>
@@ -152,10 +162,18 @@
         <button type="button" class="fmt-btn" data-fmt="italic"   title="Kursiv (Strg+I)"><i>I</i></button>
         <button type="button" class="fmt-btn" data-fmt="underline"title="Unterstreichen (Strg+U)"><u>U</u></button>
         <div class="fmt-sep"></div>
+        <button type="button" class="fmt-btn fmt-color-btn" data-fmt="color" title="Textfarbe">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="16" font-size="14" fill="currentColor" stroke="none" font-family="serif" font-weight="bold">A</text><rect x="3" y="18" width="14" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
+          <span class="fmt-color-swatch" id="note-color-swatch"></span>
+        </button>
+        <div class="fmt-sep"></div>
+        <button type="button" class="fmt-btn" data-fmt="ul"  title="Aufzählung">• Liste</button>
+        <button type="button" class="fmt-btn" data-fmt="ol"  title="Nummerierte Liste">1. Liste</button>
+        <div class="fmt-sep"></div>
         <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX inline  $…$">∑</button>
         <button type="button" class="fmt-btn" data-fmt="latex-block"  title="LaTeX block $$…$$">∫</button>
         <div class="fmt-sep"></div>
-        <span class="fmt-hint">**fett** &nbsp;*kursiv* &nbsp;__unter__</span>
+        <span class="fmt-hint">**fett** &nbsp;*kursiv* &nbsp;__unter__ &nbsp;Tab=einrücken</span>
       </div>
 
       <textarea id="note-body" placeholder="Text… Markdown und $LaTeX$ werden beim Anzeigen gerendert." rows="7"></textarea>

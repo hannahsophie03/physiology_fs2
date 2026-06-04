@@ -31,6 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
   buildNav();
   bindModals();
   bindFormatToolbars();
+  bindAutosave();
   showHome();
   bindBackup();
   startAutoBackup();
@@ -165,21 +166,60 @@ function renderTextBlock(text) {
   // HTML escapen
   text = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
-  // Markdown
+  // Markdown Inline
   text = text
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\*(.+?)\*/g,     "<em>$1</em>")
     .replace(/__(.+?)__/g,     "<u>$1</u>")
-    .replace(/\n/g,            "<br>");
+    .replace(/-&gt;/g,         "→")   // -> zu →
+    .replace(/=&gt;/g,         "⇒")   // => zu ⇒
+    .replace(/\{(#[0-9a-fA-F]{3,6})\|(.+?)\}/g, '<span style="color:$1">$2</span>'); // {#farbe|Text}
+
+  // Zeilenweise für Listen + Einrücken
+  const lines = text.split("\n");
+  let html = "";
+  let inUl = false;
+  let inOl = false;
+
+  const closeList = () => {
+    if (inUl) { html += "</ul>"; inUl = false; }
+    if (inOl) { html += "</ol>"; inOl = false; }
+  };
+
+  lines.forEach(line => {
+    // Einrücken: führende Leerzeichen (2 oder 4) → padding
+    const indentMatch = line.match(/^(\s+)/);
+    const indent = indentMatch ? Math.floor(indentMatch[1].length / 2) : 0;
+    const indentStyle = indent > 0 ? ` style="padding-left:${indent * 1.2}em"` : "";
+
+    // Ungeordnete Liste: - item oder * item
+    const ulMatch = line.match(/^(\s*)[-*] (.+)/);
+    // Geordnete Liste: 1. item
+    const olMatch = line.match(/^(\s*)\d+\. (.+)/);
+
+    if (ulMatch) {
+      if (inOl) { html += "</ol>"; inOl = false; }
+      if (!inUl) { html += `<ul class="md-list">`; inUl = true; }
+      html += `<li${indentStyle}>${ulMatch[2]}</li>`;
+    } else if (olMatch) {
+      if (inUl) { html += "</ul>"; inUl = false; }
+      if (!inOl) { html += `<ol class="md-list">`; inOl = true; }
+      html += `<li${indentStyle}>${olMatch[2]}</li>`;
+    } else {
+      closeList();
+      html += `<span${indentStyle}>${line}</span><br>`;
+    }
+  });
+  closeList();
 
   // LaTeX einsetzen
-  text = text.replace(/\x00LATEX(\d+)\x00/g, (_, idx) => {
+  html = html.replace(/\x00LATEX(\d+)\x00/g, (_, idx) => {
     const { mode, expr } = store[parseInt(idx)];
     try { return katex.renderToString(expr, { displayMode: mode, throwOnError: false }); }
     catch { return mode ? `<code>$$${expr}$$</code>` : `<code>$${expr}$</code>`; }
   });
 
-  return text;
+  return html;
 }
 
 /** Rendert einen Tabellen-Block zu HTML */
@@ -216,27 +256,59 @@ function parseAlignRow(line) {
   });
 }
 
+
 // ---------- Format-Toolbar ----------
+
+const toolbarColors = {}; // aktive Textfarbe pro Toolbar-ID
+
+const TEXT_COLOR_PRESETS = [
+  { label: "Standard", value: null },
+  { label: "Rot",      value: "#e03131" },
+  { label: "Orange",   value: "#d9480f" },
+  { label: "Gelb",     value: "#f59f00" },
+  { label: "Grün",     value: "#2f9e44" },
+  { label: "Blau",     value: "#1971c2" },
+  { label: "Lila",     value: "#7048e8" },
+  { label: "Grau",     value: "#868e96" },
+];
+
 function bindFormatToolbars() {
   document.querySelectorAll(".format-toolbar").forEach(toolbar => {
-    // Zugehöriges Textarea ermitteln: data-for oder nächstes textarea-Geschwisterelement
-    const targetId = toolbar.dataset.for;
-    const getTextarea = () => targetId
-      ? document.getElementById(targetId)
-      : toolbar.nextElementSibling;
+    const targetId  = toolbar.dataset.for;
+    const toolbarId = targetId || "note-body";
+    toolbarColors[toolbarId] = null;
+
+    const getTextarea = () => document.getElementById(targetId || "note-body");
 
     toolbar.querySelectorAll(".fmt-btn").forEach(btn => {
       btn.addEventListener("mousedown", e => {
-        e.preventDefault(); // Fokus im Textarea behalten
-        const ta  = getTextarea();
+        e.preventDefault();
+        const ta = getTextarea();
         if (!ta) return;
-        const fmt = btn.dataset.fmt;
-        applyFormat(ta, fmt);
+        if (btn.dataset.fmt === "color") {
+          openTextColorPicker(e, toolbarId, ta);
+        } else {
+          applyFormat(ta, btn.dataset.fmt, toolbarColors[toolbarId]);
+        }
       });
     });
   });
 
-  // Tastaturkürzel im Notiz-Body
+  // Tab = einrücken
+  ["note-body", "fc-front", "fc-back"].forEach(id => {
+    const ta = document.getElementById(id);
+    if (!ta) return;
+    ta.addEventListener("keydown", e => {
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const s = ta.selectionStart;
+        ta.value = ta.value.slice(0, s) + "  " + ta.value.slice(ta.selectionEnd);
+        ta.selectionStart = ta.selectionEnd = s + 2;
+      }
+    });
+  });
+
+  // Tastaturkürzel
   document.getElementById("note-body").addEventListener("keydown", e => {
     if (e.ctrlKey || e.metaKey) {
       if (e.key === "b") { e.preventDefault(); applyFormat(e.target, "bold"); }
@@ -246,35 +318,177 @@ function bindFormatToolbars() {
   });
 }
 
-function applyFormat(textarea, fmt) {
-  const start = textarea.selectionStart;
-  const end   = textarea.selectionEnd;
-  const sel   = textarea.value.slice(start, end);
+function openTextColorPicker(e, toolbarId, textarea) {
+  document.getElementById("text-color-popover")?.remove();
+
+  const popover = document.createElement("div");
+  popover.id = "text-color-popover";
+  popover.className = "color-picker-popover";
+
+  const presetRow = document.createElement("div");
+  presetRow.className = "color-preset-row";
+  TEXT_COLOR_PRESETS.forEach(({ label, value }) => {
+    const dot = document.createElement("button");
+    dot.className = "color-dot" + (toolbarColors[toolbarId] === value ? " active" : "");
+    dot.title = label;
+    dot.style.background = value || "transparent";
+    if (!value) dot.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    dot.addEventListener("click", () => {
+      setToolbarColor(toolbarId, value);
+      if (value) applyFormat(textarea, "color", value);
+      popover.remove();
+      textarea.focus();
+    });
+    presetRow.appendChild(dot);
+  });
+  popover.appendChild(presetRow);
+
+  const customRow = document.createElement("div");
+  customRow.className = "color-custom-row";
+  const lbl = document.createElement("span"); lbl.textContent = "Eigene Farbe:";
+  const inp = document.createElement("input");
+  inp.type = "color";
+  inp.value = toolbarColors[toolbarId] || "#e03131";
+  inp.addEventListener("change", () => {
+    setToolbarColor(toolbarId, inp.value);
+    applyFormat(textarea, "color", inp.value);
+    popover.remove();
+    textarea.focus();
+  });
+  customRow.appendChild(lbl); customRow.appendChild(inp);
+  popover.appendChild(customRow);
+
+  document.body.appendChild(popover);
+  const rect = e.target.closest("button").getBoundingClientRect();
+  let left = rect.left;
+  if (left + 220 > window.innerWidth - 8) left = window.innerWidth - 228;
+  popover.style.top  = `${rect.bottom + 6 + window.scrollY}px`;
+  popover.style.left = `${Math.max(8, left)}px`;
+
+  // Öffnungszeit merken — Klicks innerhalb von 200ms nach Öffnen ignorieren
+  const openedAt = Date.now();
+  document.addEventListener("pointerdown", function close(ev) {
+    if (Date.now() - openedAt < 200) return;
+    if (!popover.contains(ev.target)) {
+      popover.remove();
+      document.removeEventListener("pointerdown", close);
+    }
+  });
+}
+
+function setToolbarColor(toolbarId, color) {
+  toolbarColors[toolbarId] = color;
+  const swatchId = toolbarId === "note-body"  ? "note-color-swatch"
+                 : toolbarId === "fc-front"   ? "fc-front-color-swatch"
+                 : "fc-back-color-swatch";
+  const swatch = document.getElementById(swatchId);
+  if (swatch) swatch.style.background = color || "transparent";
+}
+
+function applyFormat(textarea, fmt, activeColor = null) {
+  const start  = textarea.selectionStart;
+  const end    = textarea.selectionEnd;
+  const sel    = textarea.value.slice(start, end);
   const before = textarea.value.slice(0, start);
   const after  = textarea.value.slice(end);
 
+  // Textfarbe
+  if (fmt === "color" && activeColor) {
+    const content  = sel || "Text";
+    const inserted = `{${activeColor}|${content}}`;
+    textarea.value = before + inserted + after;
+    textarea.setSelectionRange(start + activeColor.length + 2, start + inserted.length - 1);
+    textarea.focus();
+    return;
+  }
+
   const formats = {
-    "bold":         { wrap: ["**", "**"],   placeholder: "fetter Text" },
-    "italic":       { wrap: ["*",  "*"],    placeholder: "kursiver Text" },
-    "underline":    { wrap: ["__", "__"],   placeholder: "unterstrichener Text" },
-    "latex-inline": { wrap: ["$",  "$"],    placeholder: "E = mc^2" },
+    "bold":         { wrap: ["**", "**"],     placeholder: "fetter Text" },
+    "italic":       { wrap: ["*",  "*"],      placeholder: "kursiver Text" },
+    "underline":    { wrap: ["__", "__"],     placeholder: "unterstrichener Text" },
+    "latex-inline": { wrap: ["$",  "$"],      placeholder: "E = mc^2" },
     "latex-block":  { wrap: ["$$\n", "\n$$"], placeholder: "\\frac{d}{dx}" },
+    "ul":           { wrap: ["", ""],         placeholder: "", linePrefix: "- " },
+    "ol":           { wrap: ["", ""],         placeholder: "", linePrefix: "1. " },
   };
 
   const f = formats[fmt];
   if (!f) return;
 
+  if (f.linePrefix !== undefined) {
+    const lines    = (sel || "Listenpunkt").split("\n");
+    const prefixed = lines.map((l, i) => fmt === "ol" ? `${i+1}. ${l}` : `- ${l}`).join("\n");
+    textarea.value = before + prefixed + after;
+    textarea.setSelectionRange(start, start + prefixed.length);
+    textarea.focus();
+    return;
+  }
+
   const content  = sel || f.placeholder;
   const inserted = f.wrap[0] + content + f.wrap[1];
   textarea.value = before + inserted + after;
-
-  // Selektion auf den Inhalt setzen (ohne Wrapper)
-  const newStart = start + f.wrap[0].length;
-  const newEnd   = newStart + content.length;
-  textarea.setSelectionRange(newStart, newEnd);
+  textarea.setSelectionRange(start + f.wrap[0].length, start + f.wrap[0].length + content.length);
   textarea.focus();
 }
 
+
+// ---------- Autosave Drafts ----------
+const DRAFT_KEY = "physio_draft";
+
+function saveDraft(type, data) {
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ type, data, ts: Date.now() })); } catch {}
+}
+function loadDraft(type) {
+  try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY)); if (d && d.type === type) return d.data; } catch {}
+  return null;
+}
+function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
+
+function bindAutosave() {
+  ["note-title-input", "note-body"].forEach(id => {
+    document.getElementById(id).addEventListener("input", () => {
+      saveDraft("note", { id: editingItemId, title: document.getElementById("note-title-input").value, body: document.getElementById("note-body").value });
+    });
+  });
+  ["fc-front", "fc-back"].forEach(id => {
+    document.getElementById(id).addEventListener("input", () => {
+      saveDraft("flashcard", { id: editingItemId, front: document.getElementById("fc-front").value, back: document.getElementById("fc-back").value });
+    });
+  });
+}
+
+function restoreNoteFromDraft() {
+  const draft = loadDraft("note");
+  if (!draft || draft.id !== editingItemId) return;
+  if (Date.now() - (draft.ts || 0) > 3600000) return;
+  document.getElementById("note-title-input").value = draft.title || "";
+  document.getElementById("note-body").value = draft.body || "";
+  showDraftBanner("modal-note");
+}
+function restoreFcFromDraft() {
+  const draft = loadDraft("flashcard");
+  if (!draft || draft.id !== editingItemId) return;
+  if (Date.now() - (draft.ts || 0) > 3600000) return;
+  document.getElementById("fc-front").value = draft.front || "";
+  document.getElementById("fc-back").value  = draft.back  || "";
+  showDraftBanner("modal-flashcard");
+}
+
+function showDraftBanner(modalId) {
+  const box = document.querySelector(`#${modalId} .modal-box`);
+  if (!box || box.querySelector(".draft-banner")) return;
+  const banner = document.createElement("div");
+  banner.className = "draft-banner";
+  banner.innerHTML = `<span>↩ Nicht gespeicherter Entwurf wiederhergestellt</span><button class="draft-discard">Verwerfen</button>`;
+  banner.querySelector(".draft-discard").addEventListener("click", () => {
+    clearDraft(); banner.remove();
+    if (!editingItemId) {
+      if (modalId === "modal-note") { document.getElementById("note-title-input").value = ""; document.getElementById("note-body").value = ""; }
+      if (modalId === "modal-flashcard") { document.getElementById("fc-front").value = ""; document.getElementById("fc-back").value = ""; }
+    }
+  });
+  box.insertBefore(banner, box.firstChild);
+}
 
 function bindBackup() {
   document.getElementById("btn-export").addEventListener("click", exportBackup);
@@ -409,6 +623,100 @@ function makeStatsCard(stats) {
   return card;
 }
 
+// ---------- Kachelfarbe ----------
+const COLOR_PRESETS = [
+  { label: "Keine",  value: null },
+  { label: "Grün",   value: "#bbf7d0" },
+  { label: "Rot",    value: "#fecaca" },
+  { label: "Gelb",   value: "#fef08a" },
+  { label: "Blau",   value: "#bfdbfe" },
+  { label: "Lila",   value: "#e9d5ff" },
+  { label: "Orange", value: "#fed7aa" },
+];
+
+function applyCardColor(el, color) {
+  if (color) {
+    el.style.background       = color;
+    el.style.borderColor      = color;
+  } else {
+    el.style.background       = "";
+    el.style.borderColor      = "";
+  }
+}
+
+function makeColorBtn(item, targetEl) {
+  const btn = document.createElement("button");
+  btn.className = "icon-btn color-btn";
+  btn.title = "Farbe";
+  btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="currentColor" stroke="none"/></svg>`;
+
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    openColorPicker(e, item, targetEl);
+  });
+  return btn;
+}
+
+function openColorPicker(e, item, targetEl) {
+  // Bestehenden Picker schließen
+  document.getElementById("color-picker-popover")?.remove();
+
+  const popover = document.createElement("div");
+  popover.id = "color-picker-popover";
+  popover.className = "color-picker-popover";
+
+  // Preset-Farben
+  const presetRow = document.createElement("div");
+  presetRow.className = "color-preset-row";
+  COLOR_PRESETS.forEach(({ label, value }) => {
+    const dot = document.createElement("button");
+    dot.className = "color-dot" + (item.color === value ? " active" : "");
+    dot.title = label;
+    dot.style.background = value || "transparent";
+    if (!value) dot.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    dot.addEventListener("click", async () => {
+      await Store.updateItem(activeTopic, item.id, { color: value });
+      item.color = value;
+      applyCardColor(targetEl, value);
+      popover.remove();
+    });
+    presetRow.appendChild(dot);
+  });
+  popover.appendChild(presetRow);
+
+  // Freier Farbwähler
+  const customRow = document.createElement("div");
+  customRow.className = "color-custom-row";
+  const customLabel = document.createElement("span");
+  customLabel.textContent = "Eigene Farbe:";
+  const colorInput = document.createElement("input");
+  colorInput.type = "color";
+  colorInput.value = item.color && item.color.startsWith("#") ? item.color : "#ffffff";
+  colorInput.addEventListener("input", async () => {
+    await Store.updateItem(activeTopic, item.id, { color: colorInput.value });
+    item.color = colorInput.value;
+    applyCardColor(targetEl, colorInput.value);
+  });
+  customRow.appendChild(customLabel);
+  customRow.appendChild(colorInput);
+  popover.appendChild(customRow);
+
+  // Positionieren
+  document.body.appendChild(popover);
+  const rect = e.target.closest("button").getBoundingClientRect();
+  const pw = popover.offsetWidth || 220;
+  let left = rect.left;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  popover.style.top  = `${rect.bottom + 6 + window.scrollY}px`;
+  popover.style.left = `${left}px`;
+
+  const openedAt = Date.now();
+  document.addEventListener("pointerdown", function close(ev) {
+    if (Date.now() - openedAt < 200) return;
+    if (!popover.contains(ev.target)) { popover.remove(); document.removeEventListener("pointerdown", close); }
+  });
+}
+
 // ---------- Card factory ----------
 async function makeCard(item) {
   if (item.type === "folder")    return await makeFolderCard(item);
@@ -439,6 +747,8 @@ async function makeFolderCard(item) {
     e.stopPropagation();
     if (confirm(`Ordner „${item.name}" und alle Inhalte löschen?`)) { await Store.deleteItem(activeTopic, item.id); renderGrid(); }
   });
+  card.querySelector(".card-actions").insertBefore(makeColorBtn(item, card), card.querySelector(".delete-btn"));
+  applyCardColor(card, item.color);
   return card;
 }
 
@@ -481,6 +791,8 @@ function makeFlashcard(item) {
   actions.querySelector(".fc-expand-btn").addEventListener("click", () => openFlashcardZoom(item));
   actions.querySelector(".icon-btn:nth-child(2)").addEventListener("click", () => openFlashcardEdit(item));
   actions.querySelector(".delete-btn").addEventListener("click", async () => { await Store.deleteItem(activeTopic, item.id); renderGrid(); });
+  actions.insertBefore(makeColorBtn(item, card), actions.querySelector(".delete-btn"));
+  applyCardColor(card, item.color);
 
   wrapper.appendChild(card);
   wrapper.appendChild(actions);
@@ -512,6 +824,8 @@ function makeNoteCard(item) {
   card.querySelector(".card-body").addEventListener("click", () => openNoteView(item));
   card.querySelector(".icon-btn:first-child").addEventListener("click", (e) => { e.stopPropagation(); openNoteEdit(item); });
   card.querySelector(".delete-btn").addEventListener("click", async (e) => { e.stopPropagation(); await Store.deleteItem(activeTopic, item.id); renderGrid(); });
+  card.querySelector(".card-actions").insertBefore(makeColorBtn(item, card), card.querySelector(".delete-btn"));
+  applyCardColor(card, item.color);
   return card;
 }
 
@@ -531,6 +845,8 @@ function makeImageCard(item) {
   card.querySelector("img").addEventListener("click", () => openLightbox(item));
   card.querySelector(".icon-btn:first-child").addEventListener("click", () => openImageEdit(item));
   card.querySelector(".delete-btn").addEventListener("click", async () => { await Store.deleteItem(activeTopic, item.id); renderGrid(); });
+  card.querySelector(".card-actions").insertBefore(makeColorBtn(item, card), card.querySelector(".delete-btn"));
+  applyCardColor(card, item.color);
   return card;
 }
 
@@ -654,6 +970,7 @@ function openFlashcardNew() {
   renderFcImagePreview("front", null);
   renderFcImagePreview("back", null);
   openModal("modal-flashcard");
+  restoreFcFromDraft();
 }
 function openFlashcardEdit(item) {
   editingItemId = item.id;
@@ -664,6 +981,7 @@ function openFlashcardEdit(item) {
   renderFcImagePreview("front", fcImages.front);
   renderFcImagePreview("back",  fcImages.back);
   openModal("modal-flashcard");
+  restoreFcFromDraft();
 }
 async function saveFlashcard() {
   const front = document.getElementById("fc-front").value.trim();
@@ -672,6 +990,7 @@ async function saveFlashcard() {
   const patch = { front, back, frontImage: fcImages.front, backImage: fcImages.back };
   if (editingItemId) await Store.updateItem(activeTopic, editingItemId, patch);
   else await Store.addItem(activeTopic, { type: "flashcard", folderId: activeFolder, ...patch });
+  clearDraft();
   closeModal("modal-flashcard"); renderGrid();
 }
 
@@ -718,6 +1037,7 @@ function openNoteNew() {
   document.getElementById("note-body").value = "";
   renderNoteImageList();
   openModal("modal-note");
+  restoreNoteFromDraft();
 }
 function openNoteEdit(item) {
   editingItemId = item.id;
@@ -727,6 +1047,7 @@ function openNoteEdit(item) {
   document.getElementById("note-body").value = item.body || "";
   renderNoteImageList();
   openModal("modal-note");
+  restoreNoteFromDraft();
 }
 async function saveNote() {
   const title  = document.getElementById("note-title-input").value.trim();
@@ -735,6 +1056,7 @@ async function saveNote() {
   const images = noteImages.slice();
   if (editingItemId) await Store.updateItem(activeTopic, editingItemId, { title, body, images });
   else await Store.addItem(activeTopic, { type: "note", title, body, images, folderId: activeFolder });
+  clearDraft();
   closeModal("modal-note"); renderGrid();
 }
 
