@@ -433,60 +433,113 @@ function applyFormat(textarea, fmt, activeColor = null) {
 
 
 // ---------- Autosave Drafts ----------
-const DRAFT_KEY = "physio_draft";
+// Separater Key pro Typ+ID damit neue und bestehende Items sich nicht überschreiben
 
-function saveDraft(type, data) {
-  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ type, data, ts: Date.now() })); } catch {}
+function draftKey(type, id) {
+  return `physio_draft_${type}_${id ?? "new"}`;
 }
-function loadDraft(type) {
-  try { const d = JSON.parse(localStorage.getItem(DRAFT_KEY)); if (d && d.type === type) return d.data; } catch {}
-  return null;
+
+function saveDraft(type, id, data) {
+  try { localStorage.setItem(draftKey(type, id), JSON.stringify({ ...data, _ts: Date.now() })); } catch {}
 }
-function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
+
+function loadDraft(type, id) {
+  try {
+    const raw = localStorage.getItem(draftKey(type, id));
+    if (!raw) return null;
+    const d = JSON.parse(raw);
+    if (Date.now() - (d._ts || 0) > 4 * 60 * 60 * 1000) { clearDraft(type, id); return null; } // 4h
+    return d;
+  } catch { return null; }
+}
+
+function clearDraft(type, id) {
+  localStorage.removeItem(draftKey(type, id));
+}
 
 function bindAutosave() {
+  // Notiz-Felder
   ["note-title-input", "note-body"].forEach(id => {
     document.getElementById(id).addEventListener("input", () => {
-      saveDraft("note", { id: editingItemId, title: document.getElementById("note-title-input").value, body: document.getElementById("note-body").value });
+      saveDraft("note", editingItemId, {
+        title: document.getElementById("note-title-input").value,
+        body:  document.getElementById("note-body").value,
+      });
+      showDraftIndicator("modal-note");
     });
   });
+
+  // Karteikarten-Felder
   ["fc-front", "fc-back"].forEach(id => {
     document.getElementById(id).addEventListener("input", () => {
-      saveDraft("flashcard", { id: editingItemId, front: document.getElementById("fc-front").value, back: document.getElementById("fc-back").value });
+      saveDraft("fc", editingItemId, {
+        front: document.getElementById("fc-front").value,
+        back:  document.getElementById("fc-back").value,
+      });
+      showDraftIndicator("modal-flashcard");
     });
   });
 }
 
-function restoreNoteFromDraft() {
-  const draft = loadDraft("note");
-  if (!draft || draft.id !== editingItemId) return;
-  if (Date.now() - (draft.ts || 0) > 3600000) return;
-  document.getElementById("note-title-input").value = draft.title || "";
-  document.getElementById("note-body").value = draft.body || "";
-  showDraftBanner("modal-note");
-}
-function restoreFcFromDraft() {
-  const draft = loadDraft("flashcard");
-  if (!draft || draft.id !== editingItemId) return;
-  if (Date.now() - (draft.ts || 0) > 3600000) return;
-  document.getElementById("fc-front").value = draft.front || "";
-  document.getElementById("fc-back").value  = draft.back  || "";
-  showDraftBanner("modal-flashcard");
+/** Zeigt "● Entwurf" neben dem Modal-Titel */
+function showDraftIndicator(modalId) {
+  const titleEl = document.querySelector(`#${modalId} .modal-title`);
+  if (!titleEl || titleEl.querySelector(".draft-indicator")) return;
+  const dot = document.createElement("span");
+  dot.className = "draft-indicator";
+  dot.title = "Nicht gespeicherter Entwurf";
+  dot.textContent = " ●";
+  titleEl.appendChild(dot);
 }
 
-function showDraftBanner(modalId) {
+function hideDraftIndicator(modalId) {
+  document.querySelector(`#${modalId} .draft-indicator`)?.remove();
+}
+
+function tryRestoreNote(currentId) {
+  const draft = loadDraft("note", currentId);
+  if (!draft) return;
+
+  // Nur Banner zeigen wenn Draft sich vom aktuellen Stand unterscheidet
+  const curTitle = document.getElementById("note-title-input").value;
+  const curBody  = document.getElementById("note-body").value;
+  if (draft.title === curTitle && draft.body === curBody) return;
+
+  showRestoreBanner("modal-note", () => {
+    document.getElementById("note-title-input").value = draft.title || "";
+    document.getElementById("note-body").value = draft.body || "";
+    showDraftIndicator("modal-note");
+  }, () => clearDraft("note", currentId));
+}
+
+function tryRestoreFc(currentId) {
+  const draft = loadDraft("fc", currentId);
+  if (!draft) return;
+
+  const curFront = document.getElementById("fc-front").value;
+  const curBack  = document.getElementById("fc-back").value;
+  if (draft.front === curFront && draft.back === curBack) return;
+
+  showRestoreBanner("modal-flashcard", () => {
+    document.getElementById("fc-front").value = draft.front || "";
+    document.getElementById("fc-back").value  = draft.back  || "";
+    showDraftIndicator("modal-flashcard");
+  }, () => clearDraft("fc", currentId));
+}
+
+function showRestoreBanner(modalId, onRestore, onDiscard) {
   const box = document.querySelector(`#${modalId} .modal-box`);
   if (!box || box.querySelector(".draft-banner")) return;
   const banner = document.createElement("div");
   banner.className = "draft-banner";
-  banner.innerHTML = `<span>↩ Nicht gespeicherter Entwurf wiederhergestellt</span><button class="draft-discard">Verwerfen</button>`;
-  banner.querySelector(".draft-discard").addEventListener("click", () => {
-    clearDraft(); banner.remove();
-    if (!editingItemId) {
-      if (modalId === "modal-note") { document.getElementById("note-title-input").value = ""; document.getElementById("note-body").value = ""; }
-      if (modalId === "modal-flashcard") { document.getElementById("fc-front").value = ""; document.getElementById("fc-back").value = ""; }
-    }
-  });
+  banner.innerHTML = `
+    <span>↩ Nicht gespeicherter Entwurf gefunden</span>
+    <div style="display:flex;gap:6px">
+      <button class="draft-restore">Wiederherstellen</button>
+      <button class="draft-discard">Verwerfen</button>
+    </div>`;
+  banner.querySelector(".draft-restore").addEventListener("click", () => { onRestore(); banner.remove(); });
+  banner.querySelector(".draft-discard").addEventListener("click", () => { onDiscard(); banner.remove(); });
   box.insertBefore(banner, box.firstChild);
 }
 
@@ -969,8 +1022,9 @@ function openFlashcardNew() {
   document.getElementById("fc-back").value = "";
   renderFcImagePreview("front", null);
   renderFcImagePreview("back", null);
+  hideDraftIndicator("modal-flashcard");
   openModal("modal-flashcard");
-  restoreFcFromDraft();
+  setTimeout(() => tryRestoreFc(null), 0);
 }
 function openFlashcardEdit(item) {
   editingItemId = item.id;
@@ -980,8 +1034,9 @@ function openFlashcardEdit(item) {
   document.getElementById("fc-back").value = item.back;
   renderFcImagePreview("front", fcImages.front);
   renderFcImagePreview("back",  fcImages.back);
+  hideDraftIndicator("modal-flashcard");
   openModal("modal-flashcard");
-  restoreFcFromDraft();
+  setTimeout(() => tryRestoreFc(item.id), 0);
 }
 async function saveFlashcard() {
   const front = document.getElementById("fc-front").value.trim();
@@ -990,7 +1045,8 @@ async function saveFlashcard() {
   const patch = { front, back, frontImage: fcImages.front, backImage: fcImages.back };
   if (editingItemId) await Store.updateItem(activeTopic, editingItemId, patch);
   else await Store.addItem(activeTopic, { type: "flashcard", folderId: activeFolder, ...patch });
-  clearDraft();
+  clearDraft("fc", editingItemId);
+  hideDraftIndicator("modal-flashcard");
   closeModal("modal-flashcard"); renderGrid();
 }
 
@@ -1036,8 +1092,9 @@ function openNoteNew() {
   document.getElementById("note-title-input").value = "";
   document.getElementById("note-body").value = "";
   renderNoteImageList();
+  hideDraftIndicator("modal-note");
   openModal("modal-note");
-  restoreNoteFromDraft();
+  setTimeout(() => tryRestoreNote(null), 0);
 }
 function openNoteEdit(item) {
   editingItemId = item.id;
@@ -1046,8 +1103,9 @@ function openNoteEdit(item) {
   document.getElementById("note-title-input").value = item.title || "";
   document.getElementById("note-body").value = item.body || "";
   renderNoteImageList();
+  hideDraftIndicator("modal-note");
   openModal("modal-note");
-  restoreNoteFromDraft();
+  setTimeout(() => tryRestoreNote(item.id), 0);
 }
 async function saveNote() {
   const title  = document.getElementById("note-title-input").value.trim();
@@ -1056,7 +1114,8 @@ async function saveNote() {
   const images = noteImages.slice();
   if (editingItemId) await Store.updateItem(activeTopic, editingItemId, { title, body, images });
   else await Store.addItem(activeTopic, { type: "note", title, body, images, folderId: activeFolder });
-  clearDraft();
+  clearDraft("note", editingItemId);
+  hideDraftIndicator("modal-note");
   closeModal("modal-note"); renderGrid();
 }
 
