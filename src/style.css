@@ -497,13 +497,16 @@ body {
   background: var(--bg);
   border-radius: var(--radius-lg);
   border: 0.5px solid var(--border-md);
-  width: 100%;
-  max-width: 720px;
+  width: 720px;
+  max-width: 92vw;
+  min-width: 300px;
+  min-height: 200px;
   margin: auto;
   box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  resize: both;
 }
 
 .note-view-header {
@@ -751,8 +754,6 @@ textarea { resize: vertical; line-height: 1.55; }
 #lightbox { background: rgba(0,0,0,0.85); }
 .lightbox-inner {
   position: relative;
-  max-width: 90vw;
-  max-height: 90vh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -761,8 +762,13 @@ textarea { resize: vertical; line-height: 1.55; }
 #lightbox-img {
   max-width: 90vw;
   max-height: 80vh;
+  min-width: 120px;
+  min-height: 80px;
   object-fit: contain;
   border-radius: var(--radius-md);
+  resize: both;
+  overflow: hidden;
+  cursor: nwse-resize;
 }
 #lightbox-caption { color: #ccc; font-size: 13px; }
 #lightbox-close {
