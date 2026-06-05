@@ -1,13 +1,22 @@
 Add: 
-+ Listenpunkt mit Tab verschieben
++ erneutes drücken von Strg+B/i/u bzw Button in der Toolbar macht aktion rückgängig
 
+
++ Latex Code direkt rendern auch in der Vorschau
+
++ Vergrößerung der vergrößerten Kacheln ermöglichen
+
+
+
+
++ füge Autosave Backup-dateien zu gitignore hinzu
 
 
 
 Testen:
-+ -> wird zu Pfeil
-+ Listen 
-+ einrücken ermöglichen
++ Listenpunkt mit Tab verschieben
+
+
 
 
 

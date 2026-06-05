@@ -294,27 +294,69 @@ function bindFormatToolbars() {
     });
   });
 
-  // Tab = einrücken
+  // Tab = einrücken (oder Listeneinzug)
   ["note-body", "fc-front", "fc-back"].forEach(id => {
     const ta = document.getElementById(id);
     if (!ta) return;
     ta.addEventListener("keydown", e => {
       if (e.key === "Tab") {
         e.preventDefault();
-        const s = ta.selectionStart;
-        ta.value = ta.value.slice(0, s) + "  " + ta.value.slice(ta.selectionEnd);
-        ta.selectionStart = ta.selectionEnd = s + 2;
+        const s    = ta.selectionStart;
+        const line = ta.value.lastIndexOf("\n", s - 1) + 1;
+        const lineText = ta.value.slice(line, s);
+        const isUl = /^(\s*)([-*] )/.test(lineText);
+        const isOl = /^(\s*)(\d+\. )/.test(lineText);
+        if (isUl || isOl) {
+          // Listenpunkt einrücken/ausrücken
+          if (e.shiftKey) {
+            // Ausrücken: führende 2 Leerzeichen entfernen
+            if (ta.value.slice(line, line + 2) === "  ") {
+              ta.value = ta.value.slice(0, line) + ta.value.slice(line + 2);
+              ta.selectionStart = ta.selectionEnd = Math.max(line, s - 2);
+            }
+          } else {
+            ta.value = ta.value.slice(0, line) + "  " + ta.value.slice(line);
+            ta.selectionStart = ta.selectionEnd = s + 2;
+          }
+        } else {
+          // Normales Einrücken
+          ta.value = ta.value.slice(0, s) + "  " + ta.value.slice(ta.selectionEnd);
+          ta.selectionStart = ta.selectionEnd = s + 2;
+        }
+      }
+
+      // Enter: Auto-Nummerierung bei geordneten Listen
+      if (e.key === "Enter") {
+        const s     = ta.selectionStart;
+        const line  = ta.value.lastIndexOf("\n", s - 1) + 1;
+        const lineText = ta.value.slice(line, s);
+        const olMatch = lineText.match(/^(\s*)(\d+)\. (.+)/);
+        const ulMatch = lineText.match(/^(\s*)([-*]) (.+)/);
+        if (olMatch) {
+          e.preventDefault();
+          const nextNum  = parseInt(olMatch[2]) + 1;
+          const insert   = "\n" + olMatch[1] + nextNum + ". ";
+          ta.value = ta.value.slice(0, s) + insert + ta.value.slice(s);
+          ta.selectionStart = ta.selectionEnd = s + insert.length;
+        } else if (ulMatch) {
+          e.preventDefault();
+          const insert = "\n" + ulMatch[1] + ulMatch[2] + " ";
+          ta.value = ta.value.slice(0, s) + insert + ta.value.slice(s);
+          ta.selectionStart = ta.selectionEnd = s + insert.length;
+        }
       }
     });
   });
 
-  // Tastaturkürzel
-  document.getElementById("note-body").addEventListener("keydown", e => {
-    if (e.ctrlKey || e.metaKey) {
-      if (e.key === "b") { e.preventDefault(); applyFormat(e.target, "bold"); }
-      if (e.key === "i") { e.preventDefault(); applyFormat(e.target, "italic"); }
-      if (e.key === "u") { e.preventDefault(); applyFormat(e.target, "underline"); }
-    }
+  // Tastaturkürzel — Note UND Karteikarten
+  ["note-body", "fc-front", "fc-back"].forEach(id => {
+    document.getElementById(id).addEventListener("keydown", e => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "b") { e.preventDefault(); applyFormat(e.target, "bold"); }
+        if (e.key === "i") { e.preventDefault(); applyFormat(e.target, "italic"); }
+        if (e.key === "u") { e.preventDefault(); applyFormat(e.target, "underline"); }
+      }
+    });
   });
 }
 
@@ -676,6 +718,85 @@ function makeStatsCard(stats) {
   return card;
 }
 
+// ---------- Kachel verschieben ----------
+function makeMoveBtn(item) {
+  const btn = document.createElement("button");
+  btn.className = "icon-btn move-btn";
+  btn.title = "In Ordner verschieben";
+  btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>`;
+  btn.addEventListener("click", e => { e.stopPropagation(); openMoveDialog(item); });
+  return btn;
+}
+
+async function openMoveDialog(item) {
+  // Alle Ordner im aktuellen Topic laden (außer dem Item selbst wenn es ein Ordner ist)
+  const allItems = await Store.getItems(activeTopic, null);
+  // Auch Ordner in Unterordnern sammeln
+  const allFolders = [];
+  async function collectFolders(folderId, depth) {
+    const children = await Store.getItems(activeTopic, folderId);
+    for (const c of children) {
+      if (c.type === "folder" && c.id !== item.id) {
+        allFolders.push({ ...c, depth });
+        await collectFolders(c.id, depth + 1);
+      }
+    }
+  }
+  await collectFolders(null, 0);
+
+  // Altes Modal entfernen
+  document.getElementById("modal-move")?.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "modal-move";
+  modal.className = "modal";
+
+  const box = document.createElement("div");
+  box.className = "modal-box";
+  box.style.maxWidth = "380px";
+  box.innerHTML = `<div class="modal-title">Kachel verschieben</div>
+    <div class="move-folder-list"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="move-cancel">Abbrechen</button>
+    </div>`;
+
+  const list = box.querySelector(".move-folder-list");
+
+  // Root-Option
+  const rootBtn = document.createElement("button");
+  rootBtn.className = "move-folder-option" + (item.folderId === null ? " current" : "");
+  rootBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Hauptebene`;
+  rootBtn.addEventListener("click", async () => {
+    await Store.updateItem(activeTopic, item.id, { folderId: null });
+    modal.remove(); renderGrid();
+  });
+  list.appendChild(rootBtn);
+
+  allFolders.forEach(f => {
+    const btn = document.createElement("button");
+    btn.className = "move-folder-option" + (item.folderId === f.id ? " current" : "");
+    btn.style.paddingLeft = `${12 + f.depth * 16}px`;
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> ${escHtml(f.name)}`;
+    btn.addEventListener("click", async () => {
+      await Store.updateItem(activeTopic, item.id, { folderId: f.id });
+      modal.remove(); renderGrid();
+    });
+    list.appendChild(btn);
+  });
+
+  if (allFolders.length === 0 && item.folderId === null) {
+    const hint = document.createElement("p");
+    hint.style.cssText = "font-size:13px;color:var(--text-muted);padding:8px 0";
+    hint.textContent = "Noch keine Ordner vorhanden.";
+    list.appendChild(hint);
+  }
+
+  box.querySelector("#move-cancel").addEventListener("click", () => modal.remove());
+  modal.addEventListener("click", e => { if (e.target === modal) modal.remove(); });
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+}
+
 // ---------- Kachelfarbe ----------
 const COLOR_PRESETS = [
   { label: "Keine",  value: null },
@@ -800,6 +921,7 @@ async function makeFolderCard(item) {
     e.stopPropagation();
     if (confirm(`Ordner „${item.name}" und alle Inhalte löschen?`)) { await Store.deleteItem(activeTopic, item.id); renderGrid(); }
   });
+  card.querySelector(".card-actions").insertBefore(makeMoveBtn(item), card.querySelector(".delete-btn"));
   card.querySelector(".card-actions").insertBefore(makeColorBtn(item, card), card.querySelector(".delete-btn"));
   applyCardColor(card, item.color);
   return card;
@@ -844,6 +966,7 @@ function makeFlashcard(item) {
   actions.querySelector(".fc-expand-btn").addEventListener("click", () => openFlashcardZoom(item));
   actions.querySelector(".icon-btn:nth-child(2)").addEventListener("click", () => openFlashcardEdit(item));
   actions.querySelector(".delete-btn").addEventListener("click", async () => { await Store.deleteItem(activeTopic, item.id); renderGrid(); });
+  actions.insertBefore(makeMoveBtn(item), actions.querySelector(".delete-btn"));
   actions.insertBefore(makeColorBtn(item, card), actions.querySelector(".delete-btn"));
   applyCardColor(card, item.color);
 
@@ -877,6 +1000,7 @@ function makeNoteCard(item) {
   card.querySelector(".card-body").addEventListener("click", () => openNoteView(item));
   card.querySelector(".icon-btn:first-child").addEventListener("click", (e) => { e.stopPropagation(); openNoteEdit(item); });
   card.querySelector(".delete-btn").addEventListener("click", async (e) => { e.stopPropagation(); await Store.deleteItem(activeTopic, item.id); renderGrid(); });
+  card.querySelector(".card-actions").insertBefore(makeMoveBtn(item), card.querySelector(".delete-btn"));
   card.querySelector(".card-actions").insertBefore(makeColorBtn(item, card), card.querySelector(".delete-btn"));
   applyCardColor(card, item.color);
   return card;
@@ -898,6 +1022,7 @@ function makeImageCard(item) {
   card.querySelector("img").addEventListener("click", () => openLightbox(item));
   card.querySelector(".icon-btn:first-child").addEventListener("click", () => openImageEdit(item));
   card.querySelector(".delete-btn").addEventListener("click", async () => { await Store.deleteItem(activeTopic, item.id); renderGrid(); });
+  card.querySelector(".card-actions").insertBefore(makeMoveBtn(item), card.querySelector(".delete-btn"));
   card.querySelector(".card-actions").insertBefore(makeColorBtn(item, card), card.querySelector(".delete-btn"));
   applyCardColor(card, item.color);
   return card;

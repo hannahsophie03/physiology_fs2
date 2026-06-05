@@ -1282,3 +1282,46 @@ textarea { resize: vertical; line-height: 1.55; }
   white-space: nowrap;
 }
 .draft-discard:hover { background: var(--accent); color: #fff; }
+
+/* ============================================================
+   KACHEL VERSCHIEBEN
+   ============================================================ */
+.move-btn { color: var(--text-muted); }
+.move-btn:hover { color: var(--accent); }
+
+.move-folder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 8px 0;
+}
+
+.move-folder-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 0.5px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  text-align: left;
+  transition: background 0.12s;
+}
+.move-folder-option:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-md);
+}
+.move-folder-option.current {
+  color: var(--text-muted);
+  cursor: default;
+  font-style: italic;
+}
+.move-folder-option.current::after {
+  content: " (aktuell)";
+  font-size: 11px;
+}
