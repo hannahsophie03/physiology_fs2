@@ -89,58 +89,76 @@
 
   <!-- Flashcard editor -->
   <div id="modal-flashcard" class="modal hidden">
-    <div class="modal-box" style="max-width:560px">
+    <div class="modal-box editor-modal-box">
       <div class="modal-title" id="fc-modal-title">Neue Karteikarte</div>
 
-      <label class="field-label">Vorderseite</label>
-      <div class="format-toolbar" data-for="fc-front">
-        <button type="button" class="fmt-btn" data-fmt="bold"><b>B</b></button>
-        <button type="button" class="fmt-btn" data-fmt="italic"><i>I</i></button>
-        <button type="button" class="fmt-btn" data-fmt="underline"><u>U</u></button>
-        <div class="fmt-sep"></div>
-        <button type="button" class="fmt-btn fmt-color-btn" data-fmt="color" title="Textfarbe">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="16" font-size="14" fill="currentColor" stroke="none" font-family="serif" font-weight="bold">A</text><rect x="3" y="18" width="14" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
-          <span class="fmt-color-swatch" id="fc-front-color-swatch"></span>
-        </button>
-        <div class="fmt-sep"></div>
-        <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX $…$">∑</button>
-      </div>
-      <textarea id="fc-front" placeholder="Frage oder Begriff… ($LaTeX$ möglich)" rows="3"></textarea>
-      <div class="fc-img-upload-row">
-        <button type="button" class="fc-img-add-btn" id="fc-front-img-btn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          Bild hinzufügen
-        </button>
-        <input type="file" id="fc-front-img-file" accept="image/*" style="display:none" />
-        <div id="fc-front-img-preview" class="fc-img-preview-wrap hidden">
-          <img id="fc-front-img" alt="Vorschau" />
-          <button type="button" class="fc-img-remove-btn" id="fc-front-img-remove">✕</button>
-        </div>
-      </div>
+      <div class="editor-preview-layout">
+        <!-- Linke Spalte: Editor -->
+        <div class="editor-col">
+          <label class="field-label">Vorderseite</label>
+          <div class="format-toolbar" data-for="fc-front">
+            <button type="button" class="fmt-btn" data-fmt="bold"><b>B</b></button>
+            <button type="button" class="fmt-btn" data-fmt="italic"><i>I</i></button>
+            <button type="button" class="fmt-btn" data-fmt="underline"><u>U</u></button>
+            <div class="fmt-sep"></div>
+            <button type="button" class="fmt-btn fmt-color-btn" data-fmt="color" title="Textfarbe">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="16" font-size="14" fill="currentColor" stroke="none" font-family="serif" font-weight="bold">A</text><rect x="3" y="18" width="14" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
+              <span class="fmt-color-swatch" id="fc-front-color-swatch"></span>
+            </button>
+            <div class="fmt-sep"></div>
+            <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX $…$">∑</button>
+          </div>
+          <textarea id="fc-front" placeholder="Frage oder Begriff… ($LaTeX$ möglich)" rows="3"></textarea>
+          <div class="fc-img-upload-row">
+            <button type="button" class="fc-img-add-btn" id="fc-front-img-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Bild hinzufügen
+            </button>
+            <input type="file" id="fc-front-img-file" accept="image/*" style="display:none" />
+            <div id="fc-front-img-preview" class="fc-img-preview-wrap hidden">
+              <img id="fc-front-img" alt="Vorschau" />
+              <button type="button" class="fc-img-remove-btn" id="fc-front-img-remove">✕</button>
+            </div>
+          </div>
 
-      <label class="field-label" style="margin-top:14px">Rückseite</label>
-      <div class="format-toolbar" data-for="fc-back">
-        <button type="button" class="fmt-btn" data-fmt="bold"><b>B</b></button>
-        <button type="button" class="fmt-btn" data-fmt="italic"><i>I</i></button>
-        <button type="button" class="fmt-btn" data-fmt="underline"><u>U</u></button>
-        <div class="fmt-sep"></div>
-        <button type="button" class="fmt-btn fmt-color-btn" data-fmt="color" title="Textfarbe">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="16" font-size="14" fill="currentColor" stroke="none" font-family="serif" font-weight="bold">A</text><rect x="3" y="18" width="14" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
-          <span class="fmt-color-swatch" id="fc-back-color-swatch"></span>
-        </button>
-        <div class="fmt-sep"></div>
-        <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX $…$">∑</button>
-      </div>
-      <textarea id="fc-back" placeholder="Antwort oder Erklärung… ($LaTeX$ möglich)" rows="4"></textarea>
-      <div class="fc-img-upload-row">
-        <button type="button" class="fc-img-add-btn" id="fc-back-img-btn">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-          Bild hinzufügen
-        </button>
-        <input type="file" id="fc-back-img-file" accept="image/*" style="display:none" />
-        <div id="fc-back-img-preview" class="fc-img-preview-wrap hidden">
-          <img id="fc-back-img" alt="Vorschau" />
-          <button type="button" class="fc-img-remove-btn" id="fc-back-img-remove">✕</button>
+          <label class="field-label" style="margin-top:14px">Rückseite</label>
+          <div class="format-toolbar" data-for="fc-back">
+            <button type="button" class="fmt-btn" data-fmt="bold"><b>B</b></button>
+            <button type="button" class="fmt-btn" data-fmt="italic"><i>I</i></button>
+            <button type="button" class="fmt-btn" data-fmt="underline"><u>U</u></button>
+            <div class="fmt-sep"></div>
+            <button type="button" class="fmt-btn fmt-color-btn" data-fmt="color" title="Textfarbe">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="16" font-size="14" fill="currentColor" stroke="none" font-family="serif" font-weight="bold">A</text><rect x="3" y="18" width="14" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
+              <span class="fmt-color-swatch" id="fc-back-color-swatch"></span>
+            </button>
+            <div class="fmt-sep"></div>
+            <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX $…$">∑</button>
+          </div>
+          <textarea id="fc-back" placeholder="Antwort oder Erklärung… ($LaTeX$ möglich)" rows="4"></textarea>
+          <div class="fc-img-upload-row">
+            <button type="button" class="fc-img-add-btn" id="fc-back-img-btn">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+              Bild hinzufügen
+            </button>
+            <input type="file" id="fc-back-img-file" accept="image/*" style="display:none" />
+            <div id="fc-back-img-preview" class="fc-img-preview-wrap hidden">
+              <img id="fc-back-img" alt="Vorschau" />
+              <button type="button" class="fc-img-remove-btn" id="fc-back-img-remove">✕</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rechte Spalte: Vorschau -->
+        <div class="preview-col">
+          <div class="preview-label">Vorschau</div>
+          <div class="preview-face">
+            <div class="fc-label">Frage</div>
+            <div class="preview-text" id="fc-front-preview"></div>
+          </div>
+          <div class="preview-face preview-face-back">
+            <div class="fc-label">Antwort</div>
+            <div class="preview-text" id="fc-back-preview"></div>
+          </div>
         </div>
       </div>
 
@@ -153,39 +171,48 @@
 
   <!-- Note editor -->
   <div id="modal-note" class="modal hidden">
-    <div class="modal-box" style="max-width:560px">
+    <div class="modal-box editor-modal-box">
       <div class="modal-title" id="note-modal-title">Neue Notiz</div>
       <input id="note-title-input" placeholder="Titel…" style="margin-bottom:10px" />
 
-      <div class="format-toolbar">
-        <button type="button" class="fmt-btn" data-fmt="bold"     title="Fett (Strg+B)"><b>B</b></button>
-        <button type="button" class="fmt-btn" data-fmt="italic"   title="Kursiv (Strg+I)"><i>I</i></button>
-        <button type="button" class="fmt-btn" data-fmt="underline"title="Unterstreichen (Strg+U)"><u>U</u></button>
-        <div class="fmt-sep"></div>
-        <button type="button" class="fmt-btn fmt-color-btn" data-fmt="color" title="Textfarbe">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="16" font-size="14" fill="currentColor" stroke="none" font-family="serif" font-weight="bold">A</text><rect x="3" y="18" width="14" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
-          <span class="fmt-color-swatch" id="note-color-swatch"></span>
-        </button>
-        <div class="fmt-sep"></div>
-        <button type="button" class="fmt-btn" data-fmt="ul"  title="Aufzählung">• Liste</button>
-        <button type="button" class="fmt-btn" data-fmt="ol"  title="Nummerierte Liste">1. Liste</button>
-        <div class="fmt-sep"></div>
-        <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX inline  $…$">∑</button>
-        <button type="button" class="fmt-btn" data-fmt="latex-block"  title="LaTeX block $$…$$">∫</button>
-        <div class="fmt-sep"></div>
-        <span class="fmt-hint">**fett** &nbsp;*kursiv* &nbsp;__unter__ &nbsp;Tab=einrücken</span>
-      </div>
+      <div class="editor-preview-layout">
+        <!-- Linke Spalte: Editor -->
+        <div class="editor-col">
+          <div class="format-toolbar">
+            <button type="button" class="fmt-btn" data-fmt="bold"     title="Fett (Strg+B)"><b>B</b></button>
+            <button type="button" class="fmt-btn" data-fmt="italic"   title="Kursiv (Strg+I)"><i>I</i></button>
+            <button type="button" class="fmt-btn" data-fmt="underline"title="Unterstreichen (Strg+U)"><u>U</u></button>
+            <div class="fmt-sep"></div>
+            <button type="button" class="fmt-btn fmt-color-btn" data-fmt="color" title="Textfarbe">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="16" font-size="14" fill="currentColor" stroke="none" font-family="serif" font-weight="bold">A</text><rect x="3" y="18" width="14" height="3" rx="1" fill="currentColor" stroke="none"/></svg>
+              <span class="fmt-color-swatch" id="note-color-swatch"></span>
+            </button>
+            <div class="fmt-sep"></div>
+            <button type="button" class="fmt-btn" data-fmt="ul"  title="Aufzählung">• Liste</button>
+            <button type="button" class="fmt-btn" data-fmt="ol"  title="Nummerierte Liste">1. Liste</button>
+            <div class="fmt-sep"></div>
+            <button type="button" class="fmt-btn" data-fmt="latex-inline" title="LaTeX inline  $…$">∑</button>
+            <button type="button" class="fmt-btn" data-fmt="latex-block"  title="LaTeX block $$…$$">∫</button>
+          </div>
+          <textarea id="note-body" placeholder="Text… Markdown und $LaTeX$ werden live gerendert." rows="9"></textarea>
+          <div class="note-img-section">
+            <div class="field-label" style="margin-top:12px;margin-bottom:6px">Bilder in der Notiz</div>
+            <div id="note-img-list"></div>
+            <button type="button" id="note-add-img-btn" class="note-add-img-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Bild hinzufügen
+            </button>
+            <input type="file" id="note-img-file" accept="image/*" style="display:none" />
+          </div>
+        </div>
 
-      <textarea id="note-body" placeholder="Text… Markdown und $LaTeX$ werden beim Anzeigen gerendert." rows="7"></textarea>
-
-      <div class="note-img-section">
-        <div class="field-label" style="margin-top:12px;margin-bottom:6px">Bilder in der Notiz</div>
-        <div id="note-img-list"></div>
-        <button type="button" id="note-add-img-btn" class="note-add-img-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Bild hinzufügen
-        </button>
-        <input type="file" id="note-img-file" accept="image/*" style="display:none" />
+        <!-- Rechte Spalte: Vorschau -->
+        <div class="preview-col">
+          <div class="preview-label">Vorschau</div>
+          <div class="preview-face preview-note-face">
+            <div class="preview-text" id="note-body-preview"></div>
+          </div>
+        </div>
       </div>
 
       <div class="modal-footer">

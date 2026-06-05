@@ -358,6 +358,51 @@ function bindFormatToolbars() {
       }
     });
   });
+
+  // Live-Vorschau verdrahten
+  bindLivePreview();
+}
+
+// ---------- Live-Vorschau ----------
+function bindLivePreview() {
+  const pairs = [
+    { inputId: "note-body",  previewId: "note-body-preview" },
+    { inputId: "fc-front",   previewId: "fc-front-preview" },
+    { inputId: "fc-back",    previewId: "fc-back-preview" },
+  ];
+
+  let debounceTimer = null;
+
+  pairs.forEach(({ inputId, previewId }) => {
+    const ta      = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    if (!ta || !preview) return;
+
+    const update = () => {
+      preview.innerHTML = renderContent(ta.value);
+    };
+
+    ta.addEventListener("input", () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(update, 250);
+    });
+
+    // Sofort beim Öffnen rendern
+    ta.addEventListener("focus", update);
+  });
+}
+
+/** Vorschau sofort aktualisieren (beim Öffnen eines Modals aufrufen) */
+function updatePreviews() {
+  [
+    ["note-body",  "note-body-preview"],
+    ["fc-front",   "fc-front-preview"],
+    ["fc-back",    "fc-back-preview"],
+  ].forEach(([inputId, previewId]) => {
+    const ta      = document.getElementById(inputId);
+    const preview = document.getElementById(previewId);
+    if (ta && preview) preview.innerHTML = renderContent(ta.value);
+  });
 }
 
 function openTextColorPicker(e, toolbarId, textarea) {
@@ -913,7 +958,7 @@ async function makeFolderCard(item) {
   card.innerHTML = `
     <div class="drag-handle" title="Verschieben">⠿</div>
     <div class="card-icon folder-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
-    <div class="card-body" style="flex:1;cursor:pointer"><div class="card-title">${escHtml(item.name)}</div><div class="card-meta">${summary}</div></div>
+    <div class="card-body" style="flex:1;cursor:pointer"><div class="card-title">${renderContent(item.name)}</div><div class="card-meta">${summary}</div></div>
     <div class="card-actions"><button class="icon-btn delete-btn" title="Löschen">✕</button></div>`;
   card.querySelector(".card-body").addEventListener("click", () => { activeFolder = item.id; renderTopicScreen(); });
   card.querySelector(".card-icon").addEventListener("click", () => { activeFolder = item.id; renderTopicScreen(); });
@@ -987,8 +1032,8 @@ function makeNoteCard(item) {
   card.innerHTML = `
     <div class="drag-handle" title="Verschieben">⠿</div>
     <div class="card-body" style="padding-right:36px;cursor:pointer">
-      <div class="card-title">${escHtml(item.title || "Notiz")}</div>
-      <div class="note-preview">${escHtml(preview)}</div>
+      <div class="card-title">${renderContent(item.title || "Notiz")}</div>
+      <div class="note-preview">${renderContent(preview)}</div>
       ${hasImages ? `<div class="note-img-strip">${item.images.map(img =>
         `<img src="${img.dataUrl}" alt="${escHtml(img.caption||'')}" />`
       ).join("")}</div>` : ""}
@@ -1149,7 +1194,7 @@ function openFlashcardNew() {
   renderFcImagePreview("back", null);
   hideDraftIndicator("modal-flashcard");
   openModal("modal-flashcard");
-  setTimeout(() => tryRestoreFc(null), 0);
+  setTimeout(() => { tryRestoreFc(null); updatePreviews(); }, 0);
 }
 function openFlashcardEdit(item) {
   editingItemId = item.id;
@@ -1161,7 +1206,7 @@ function openFlashcardEdit(item) {
   renderFcImagePreview("back",  fcImages.back);
   hideDraftIndicator("modal-flashcard");
   openModal("modal-flashcard");
-  setTimeout(() => tryRestoreFc(item.id), 0);
+  setTimeout(() => { tryRestoreFc(item.id); updatePreviews(); }, 0);
 }
 async function saveFlashcard() {
   const front = document.getElementById("fc-front").value.trim();
@@ -1219,7 +1264,7 @@ function openNoteNew() {
   renderNoteImageList();
   hideDraftIndicator("modal-note");
   openModal("modal-note");
-  setTimeout(() => tryRestoreNote(null), 0);
+  setTimeout(() => { tryRestoreNote(null); updatePreviews(); }, 0);
 }
 function openNoteEdit(item) {
   editingItemId = item.id;
@@ -1230,7 +1275,7 @@ function openNoteEdit(item) {
   renderNoteImageList();
   hideDraftIndicator("modal-note");
   openModal("modal-note");
-  setTimeout(() => tryRestoreNote(item.id), 0);
+  setTimeout(() => { tryRestoreNote(item.id); updatePreviews(); }, 0);
 }
 async function saveNote() {
   const title  = document.getElementById("note-title-input").value.trim();
