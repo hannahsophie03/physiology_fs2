@@ -392,9 +392,8 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  width: 100%;
-  max-width: 640px;
   padding: 1rem;
+  /* Kein max-width — die Karte selbst ist das Limit */
 }
 #fc-zoom-close {
   align-self: flex-end;
@@ -414,10 +413,40 @@ body {
 #fc-zoom-close:hover { opacity: 1; background: rgba(255,255,255,0.25); }
 
 .fc-zoom-card {
-  width: 100%;
-  height: 320px;
+  /* Frei in Breite und Höhe skalierbar */
+  width: 640px;
+  height: 380px;
+  max-width: 92vw;
+  max-height: 80vh;
+  min-width: 280px;
+  min-height: 200px;
   perspective: 1000px;
   cursor: pointer;
+  /* Nativer Browser-Resize-Handle */
+  resize: both;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+/* Resize-Hinweis */
+.fc-zoom-card::after {
+  content: "";
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(
+    135deg,
+    transparent 40%,
+    rgba(255,255,255,0.35) 40%,
+    rgba(255,255,255,0.35) 55%,
+    transparent 55%,
+    transparent 70%,
+    rgba(255,255,255,0.35) 70%
+  );
+  pointer-events: none;
+  z-index: 10;
 }
 .fc-zoom-inner {
   position: relative;
