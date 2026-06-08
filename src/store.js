@@ -145,6 +145,36 @@ const Store = (() => {
       };
     },
 
+    /** Statistik für einen bestimmten Ordner (inkl. Unterordner) */
+    async statsInFolder(topicId, folderId) {
+      const { topic } = await _topicData(topicId);
+      const all = topic.items;
+      // Alle IDs sammeln die zum Ordner gehören (rekursiv)
+      const folderIds = new Set([folderId]);
+      let changed = true;
+      while (changed) {
+        changed = false;
+        all.forEach(i => {
+          if (i.type === "folder" && i.folderId && folderIds.has(i.folderId) && !folderIds.has(i.id)) {
+            folderIds.add(i.id); changed = true;
+          }
+        });
+      }
+      const inScope = all.filter(i => i.folderId && folderIds.has(i.folderId));
+      return {
+        flashcards: inScope.filter(i => i.type === "flashcard").length,
+        notes:      inScope.filter(i => i.type === "note").length,
+        images:     inScope.filter(i => i.type === "image").length,
+        folders:    inScope.filter(i => i.type === "folder").length,
+      };
+    },
+
+    /** Alle Items eines Typs im ganzen Topic (über alle Ordner) */
+    async getItemsDeep(topicId, type) {
+      const { topic } = await _topicData(topicId);
+      return topic.items.filter(i => i.type === type);
+    },
+
     /** Alle Rohdaten lesen (für Backup-Export) */
     async raw() {
       return await _load();

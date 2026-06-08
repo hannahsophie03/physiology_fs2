@@ -20,6 +20,7 @@ const TOPICS = [
 
 let activeTopic   = null;
 let activeFolder  = null;
+let activeFilter  = null; // "flashcard" | "note" | "image" | "folder" | null
 let editingItemId = null;
 let pendingImgUrl = null;
 let pendingEditImgUrl = null;
@@ -489,6 +490,15 @@ function applyFormat(textarea, fmt, activeColor = null) {
     return;
   }
 
+  // Tabelle
+  if (fmt === "table") {
+    const tpl = `\n| Kopfzeile 1 | Kopfzeile 2 | Kopfzeile 3 |\n| :--- | :---: | ---: |\n| Linksbündig | Zentriert | Rechtsbündig |\n| Inhalt | Inhalt | Inhalt |\n`;
+    textarea.value = before + tpl + after;
+    textarea.setSelectionRange(start + 1, start + 1 + tpl.trim().length);
+    textarea.focus();
+    return;
+  }
+
   const formats = {
     "bold":         { wrap: ["**", "**"],     placeholder: "fetter Text" },
     "italic":       { wrap: ["*",  "*"],      placeholder: "kursiver Text" },
@@ -511,10 +521,36 @@ function applyFormat(textarea, fmt, activeColor = null) {
     return;
   }
 
+  const [wrapL, wrapR] = f.wrap;
+
+  // Toggle: prüfen ob Selektion bereits mit diesem Wrapper umgeben ist
+  const selWrapped   = sel.startsWith(wrapL) && sel.endsWith(wrapR) && sel.length > wrapL.length + wrapR.length;
+  const outerWrapped = before.endsWith(wrapL) && after.startsWith(wrapR);
+
+  if (selWrapped) {
+    // Wrapper innerhalb der Selektion entfernen
+    const inner = sel.slice(wrapL.length, sel.length - wrapR.length);
+    textarea.value = before + inner + after;
+    textarea.setSelectionRange(start, start + inner.length);
+    textarea.focus();
+    return;
+  }
+
+  if (outerWrapped) {
+    // Wrapper außerhalb der Selektion entfernen
+    const newBefore = before.slice(0, before.length - wrapL.length);
+    const newAfter  = after.slice(wrapR.length);
+    textarea.value = newBefore + sel + newAfter;
+    textarea.setSelectionRange(start - wrapL.length, start - wrapL.length + sel.length);
+    textarea.focus();
+    return;
+  }
+
+  // Wrapper einfügen
   const content  = sel || f.placeholder;
-  const inserted = f.wrap[0] + content + f.wrap[1];
+  const inserted = wrapL + content + wrapR;
   textarea.value = before + inserted + after;
-  textarea.setSelectionRange(start + f.wrap[0].length, start + f.wrap[0].length + content.length);
+  textarea.setSelectionRange(start + wrapL.length, start + wrapL.length + content.length);
   textarea.focus();
 }
 
@@ -675,7 +711,7 @@ function buildNav() {
 }
 
 function openTopic(topicId) {
-  activeTopic = topicId; activeFolder = null;
+  activeTopic = topicId; activeFolder = null; activeFilter = null;
   document.querySelectorAll(".nav-topic-btn").forEach(b => b.classList.toggle("active", b.dataset.id === topicId));
   renderTopicScreen();
 }
@@ -727,16 +763,34 @@ async function renderGrid() {
   const grid = document.getElementById("content-grid");
   grid.innerHTML = "";
 
-  if (!activeFolder) {
-    const stats = await Store.stats(activeTopic);
-    if (stats.flashcards + stats.notes + stats.images + stats.folders > 0)
-      grid.appendChild(makeStatsCard(stats));
+  // Übersichtskachel — auf Root-Ebene: alle Items des Topics
+  //                  — in Ordnern: Items des Ordners inkl. Unterordner
+  const stats = activeFolder
+    ? await Store.statsInFolder(activeTopic, activeFolder)
+    : await Store.stats(activeTopic);
+  if (stats.flashcards + stats.notes + stats.images + stats.folders > 0)
+    grid.appendChild(makeStatsCard(stats));
+
+  let items;
+
+  if (activeFilter) {
+    // Filter aktiv: auf Root-Ebene alle Items des Topics (tief), in Ordner nur die aktuelle Ebene
+    if (!activeFolder) {
+      items = await Store.getItemsDeep(activeTopic, activeFilter);
+    } else {
+      const all = await Store.getItems(activeTopic, activeFolder);
+      items = all.filter(i => i.type === activeFilter);
+    }
+  } else {
+    items = await Store.getItems(activeTopic, activeFolder);
   }
 
-  const items = await Store.getItems(activeTopic, activeFolder);
   if (items.length === 0) {
     const e = document.createElement("div"); e.className = "empty-hint";
-    e.textContent = "Noch nichts hier. Klicke auf „+ Hinzufügen";
+    const typeLabel = { flashcard: "Karteikarten", note: "Notizen", image: "Bilder", folder: "Ordner" };
+    e.textContent = activeFilter
+      ? `Keine ${typeLabel[activeFilter]} ${!activeFolder ? "im gesamten Thema" : "in diesem Ordner"} vorhanden.`
+      : "Noch nichts hier. Klicke auf „+ Hinzufügen";
     grid.appendChild(e); return;
   }
 
@@ -754,12 +808,33 @@ async function renderGrid() {
 function makeStatsCard(stats) {
   const card = document.createElement("div");
   card.className = "stats-card";
-  card.innerHTML = `<div class="stats-title">Übersicht</div><div class="stats-grid">
-    <div class="stat-item"><span class="stat-num">${stats.flashcards}</span><span class="stat-lbl">Karteikarten</span></div>
-    <div class="stat-item"><span class="stat-num">${stats.notes}</span><span class="stat-lbl">Notizen</span></div>
-    <div class="stat-item"><span class="stat-num">${stats.images}</span><span class="stat-lbl">Bilder</span></div>
-    <div class="stat-item"><span class="stat-num">${stats.folders}</span><span class="stat-lbl">Ordner</span></div>
+
+  const filterLabels = { flashcard: "Karteikarten", note: "Notizen", image: "Bilder", folder: "Ordner" };
+  const filterActive = activeFilter;
+
+  card.innerHTML = `<div class="stats-title">Übersicht ${filterActive ? `<span class="filter-active-badge">Gefiltert: ${filterLabels[filterActive]} <button class="filter-clear-btn" title="Filter entfernen">✕</button></span>` : ""}</div>
+  <div class="stats-grid">
+    <div class="stat-item stat-clickable" data-filter="flashcard"><span class="stat-num">${stats.flashcards}</span><span class="stat-lbl">Karteikarten</span></div>
+    <div class="stat-item stat-clickable" data-filter="note"><span class="stat-num">${stats.notes}</span><span class="stat-lbl">Notizen</span></div>
+    <div class="stat-item stat-clickable" data-filter="image"><span class="stat-num">${stats.images}</span><span class="stat-lbl">Bilder</span></div>
+    <div class="stat-item stat-clickable" data-filter="folder"><span class="stat-num">${stats.folders}</span><span class="stat-lbl">Ordner</span></div>
   </div>`;
+
+  card.querySelectorAll(".stat-clickable").forEach(el => {
+    const f = el.dataset.filter;
+    if (f === activeFilter) el.classList.add("stat-active");
+    el.addEventListener("click", () => {
+      activeFilter = (activeFilter === f) ? null : f;
+      renderGrid();
+    });
+  });
+
+  card.querySelector(".filter-clear-btn")?.addEventListener("click", e => {
+    e.stopPropagation();
+    activeFilter = null;
+    renderGrid();
+  });
+
   return card;
 }
 
@@ -1059,7 +1134,7 @@ function makeImageCard(item) {
   card.innerHTML = `
     <div class="drag-handle img-drag-handle" title="Verschieben">⠿</div>
     <img src="${item.dataUrl}" alt="${escHtml(item.title || '')}" loading="lazy" />
-    <div class="img-caption">${escHtml(item.title || "")}</div>
+    <div class="img-caption">${renderContent(item.title || "")}</div>
     <div class="card-actions">
       <button class="icon-btn" title="Bearbeiten">✎</button>
       <button class="icon-btn delete-btn" title="Löschen">✕</button>
@@ -1076,7 +1151,7 @@ function makeImageCard(item) {
 // ---------- Lightbox ----------
 function openLightbox(item) {
   document.getElementById("lightbox-img").src = item.dataUrl;
-  document.getElementById("lightbox-caption").textContent = item.title || "";
+  document.getElementById("lightbox-caption").innerHTML = renderContent(item.title || "");
   openModal("lightbox");
 }
 
@@ -1355,14 +1430,14 @@ function openNoteView(item) {
       el.title = img.caption || "";
       el.addEventListener("click", () => {
         document.getElementById("lightbox-img").src = img.dataUrl;
-        document.getElementById("lightbox-caption").textContent = img.caption || "";
+        document.getElementById("lightbox-caption").innerHTML = renderContent(img.caption || "");
         openModal("lightbox");
       });
       wrap.appendChild(el);
       if (img.caption) {
         const cap = document.createElement("div");
         cap.className = "note-view-img-caption";
-        cap.textContent = img.caption;
+        cap.innerHTML = renderContent(img.caption);
         wrap.appendChild(cap);
       }
       imgGrid.appendChild(wrap);

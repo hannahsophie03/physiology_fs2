@@ -1431,3 +1431,45 @@ textarea { resize: vertical; line-height: 1.55; }
 .preview-text .katex-display {
   overflow-x: auto;
 }
+
+/* ============================================================
+   STATS KACHEL — Filter
+   ============================================================ */
+.stat-clickable {
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  margin: -4px -8px;
+  transition: background 0.12s;
+}
+.stat-clickable:hover { background: var(--bg-tertiary); }
+.stat-active {
+  background: var(--accent-light) !important;
+  outline: 1.5px solid var(--accent);
+}
+.stat-active .stat-lbl { color: var(--accent); }
+
+.filter-active-badge {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--accent);
+  background: var(--accent-light);
+  border: 0.5px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  margin-left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.filter-clear-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 11px;
+  padding: 0;
+  line-height: 1;
+}
