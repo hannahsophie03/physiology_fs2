@@ -1,15 +1,9 @@
 Add: 
 + erneutes drücken von Strg+B/i/u bzw Button in der Toolbar macht aktion rückgängig
-
-
-+ Latex Code direkt rendern auch in der Vorschau
-
-+ Vergrößerung der vergrößerten Kacheln ermöglichen
-
-
-
-
 + füge Autosave Backup-dateien zu gitignore hinzu
++ Toolbar: Shortcut für Tabelle
++ Bilder direkt in text integrieren
++ Filtern nach Karteikarten, Notizen, etc -> klicekn auf Übersichtskachel
 
 
 
