@@ -1,67 +1,77 @@
 // ============================================================
 //  store.js — Datenpersistenz
 //
-//  Zwei Modi, automatisch erkannt:
-//
-//  SERVER-MODUS  (node server.js → http://localhost:3000)
-//    → liest/schreibt data.json via API
-//    → Änderungen sofort in VS Code sichtbar
-//
-//  DATEI-MODUS  (index.html direkt im Browser geöffnet)
-//    → speichert in localStorage (wie vorher)
-//
 //  Datenmodell:
-//    {
-//      [topicId]: {
-//        items: [ ...Item ]
-//      }
-//    }
+//  {
+//    _subjects: [
+//      { id, name, topics: [{id, label}] }
+//    ],
+//    [topicId]: { items: [...] }   ← unverändert
+//  }
 //
-//  Item-Typen:
-//    { id, type:"flashcard", folderId, front, back, createdAt }
-//    { id, type:"note",      folderId, title, body, createdAt }
-//    { id, type:"image",     folderId, title, dataUrl, createdAt }
-//    { id, type:"folder",    folderId, name,  createdAt }
+//  Migration: Bestehendes physio_data ohne _subjects bekommt
+//  automatisch ein "Humanphysiologie"-Fach mit den 13 festen Topics.
 // ============================================================
 
 const SERVER_MODE = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 const STORAGE_KEY = "physio_data";
 
-const Store = (() => {
+const DEFAULT_PHYSIO_TOPICS = [
+  { id: "zellphysio", label: "Zellphysiologie & Homöostase" },
+  { id: "muskel",     label: "Muskelphysiologie" },
+  { id: "blut",       label: "Blut" },
+  { id: "immun",      label: "Immunsystem" },
+  { id: "atmung",     label: "Atmung" },
+  { id: "saeure",     label: "Säure-/Basen-Haushalt" },
+  { id: "niere",      label: "Niere" },
+  { id: "herz",       label: "Herz-/Kreislaufphysiologie" },
+  { id: "verdauung",  label: "Verdauungstrakt" },
+  { id: "hormone",    label: "Hormone" },
+  { id: "zns",        label: "ZNS" },
+  { id: "sehen",      label: "Sehen" },
+  { id: "hoeren",     label: "Hören" },
+];
 
-  // ---- interner Cache (vermeidet unnötige Netzwerk-Roundtrips) ----
+const Store = (() => {
   let _cache = null;
 
-  // ---- Laden ----
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
   async function _load() {
     if (_cache) return _cache;
+    let data = {};
     if (SERVER_MODE) {
-      try {
-        const res  = await fetch("/api/data");
-        _cache = await res.json();
-      } catch {
-        _cache = {};
-      }
+      try { const res = await fetch("/api/data"); data = await res.json(); }
+      catch { data = {}; }
     } else {
-      try { _cache = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
-      catch { _cache = {}; }
+      try { data = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+      catch { data = {}; }
     }
+    // Migration: kein _subjects → Humanphysiologie-Fach anlegen
+    if (!data._subjects) {
+      data._subjects = [{
+        id: "humanphysio",
+        name: "Humanphysiologie",
+        topics: DEFAULT_PHYSIO_TOPICS.map(t => ({ id: t.id, label: t.label })),
+      }];
+      await _persist(data);
+    }
+    _cache = data;
     return _cache;
   }
 
-  // ---- Speichern ----
-  async function _save(data) {
+  async function _persist(data) {
     _cache = data;
     if (SERVER_MODE) {
       try {
         await fetch("/api/data", {
-          method:  "POST",
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify(data),
+          body: JSON.stringify(data),
         });
-      } catch {
-        console.error("Speichern fehlgeschlagen — läuft server.js?");
-      }
+      } catch { console.error("Speichern fehlgeschlagen — läuft server.js?"); }
     } else {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     }
@@ -73,17 +83,78 @@ const Store = (() => {
     return { data, topic: data[topicId] };
   }
 
-  function uid() {
-    return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  }
-
-  // ---- Öffentliche API ----
   return {
-
     isServerMode() { return SERVER_MODE; },
-
-    /** Cache leeren (z.B. nach Import) */
     clearCache() { _cache = null; },
+
+    // ---- Fächer ----
+
+    async getSubjects() {
+      const data = await _load();
+      return data._subjects || [];
+    },
+
+    async addSubject(name) {
+      const data = await _load();
+      const subject = { id: uid(), name, topics: [] };
+      data._subjects.push(subject);
+      await _persist(data);
+      return subject;
+    },
+
+    async renameSubject(subjectId, name) {
+      const data = await _load();
+      const s = data._subjects.find(s => s.id === subjectId);
+      if (s) { s.name = name; await _persist(data); }
+    },
+
+    async deleteSubject(subjectId) {
+      const data = await _load();
+      const s = data._subjects.find(s => s.id === subjectId);
+      if (s) {
+        // Topic-Daten löschen
+        s.topics.forEach(t => { delete data[t.id]; });
+        data._subjects = data._subjects.filter(s => s.id !== subjectId);
+        await _persist(data);
+      }
+    },
+
+    // ---- Topics eines Fachs ----
+
+    async getTopics(subjectId) {
+      const data = await _load();
+      const s = data._subjects.find(s => s.id === subjectId);
+      return s ? s.topics : [];
+    },
+
+    async addTopic(subjectId, label) {
+      const data = await _load();
+      const s = data._subjects.find(s => s.id === subjectId);
+      if (!s) return null;
+      const topic = { id: uid(), label };
+      s.topics.push(topic);
+      await _persist(data);
+      return topic;
+    },
+
+    async renameTopic(subjectId, topicId, label) {
+      const data = await _load();
+      const s = data._subjects.find(s => s.id === subjectId);
+      if (!s) return;
+      const t = s.topics.find(t => t.id === topicId);
+      if (t) { t.label = label; await _persist(data); }
+    },
+
+    async deleteTopic(subjectId, topicId) {
+      const data = await _load();
+      const s = data._subjects.find(s => s.id === subjectId);
+      if (!s) return;
+      s.topics = s.topics.filter(t => t.id !== topicId);
+      delete data[topicId];
+      await _persist(data);
+    },
+
+    // ---- Items (unverändert) ----
 
     async getItems(topicId, folderId = null) {
       const { topic } = await _topicData(topicId);
@@ -101,7 +172,7 @@ const Store = (() => {
       const { data, topic } = await _topicData(topicId);
       const item = { id: uid(), createdAt: Date.now(), folderId: null, ...itemData };
       topic.items.push(item);
-      await _save(data);
+      await _persist(data);
       return item;
     },
 
@@ -110,7 +181,7 @@ const Store = (() => {
       const idx = topic.items.findIndex(i => i.id === itemId);
       if (idx === -1) return;
       topic.items[idx] = { ...topic.items[idx], ...patch };
-      await _save(data);
+      await _persist(data);
       return topic.items[idx];
     },
 
@@ -131,7 +202,7 @@ const Store = (() => {
         }
       }
       topic.items = topic.items.filter(i => !toDelete.has(i.id));
-      await _save(data);
+      await _persist(data);
     },
 
     async stats(topicId) {
@@ -145,11 +216,9 @@ const Store = (() => {
       };
     },
 
-    /** Statistik für einen bestimmten Ordner (inkl. Unterordner) */
     async statsInFolder(topicId, folderId) {
       const { topic } = await _topicData(topicId);
       const all = topic.items;
-      // Alle IDs sammeln die zum Ordner gehören (rekursiv)
       const folderIds = new Set([folderId]);
       let changed = true;
       while (changed) {
@@ -169,31 +238,25 @@ const Store = (() => {
       };
     },
 
-    /** Alle Items eines Typs im ganzen Topic (über alle Ordner) */
     async getItemsDeep(topicId, type) {
       const { topic } = await _topicData(topicId);
       return topic.items.filter(i => i.type === type);
     },
 
-    /** Alle Rohdaten lesen (für Backup-Export) */
-    async raw() {
-      return await _load();
-    },
+    async raw() { return await _load(); },
 
-    /** Alle Rohdaten schreiben (für Backup-Import) */
     async rawSet(data) {
       _cache = null;
-      await _save(data);
+      await _persist(data);
     },
 
-    /** Reihenfolge der Items eines Folders neu setzen */
     async reorderItems(topicId, folderId, orderedIds) {
       const { data, topic } = await _topicData(topicId);
       orderedIds.forEach((id, idx) => {
         const item = topic.items.find(i => i.id === id);
         if (item) item.order = idx;
       });
-      await _save(data);
+      await _persist(data);
     },
   };
 })();

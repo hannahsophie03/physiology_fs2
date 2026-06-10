@@ -2,39 +2,25 @@
 //  app.js — Hauptlogik
 // ============================================================
 
-const TOPICS = [
-  { id: "zellphysio", label: "Zellphysiologie & Homöostase" },
-  { id: "muskel",     label: "Muskelphysiologie" },
-  { id: "vegetativesns",     label: "Vegetatives NS" },
-  { id: "blut",       label: "Blut" },
-  { id: "immun",      label: "Immunsystem" },
-  { id: "atmung",     label: "Atmung" },
-  { id: "saeure",     label: "Säure-/Basen-Haushalt" },
-  { id: "niere",      label: "Niere" },
-  { id: "herz",       label: "Herz-/Kreislaufphysiologie" },
-  { id: "verdauung",  label: "Verdauungstrakt" },
-  { id: "hormone",    label: "Hormone" },
-  { id: "zns",        label: "ZNS" },
-  { id: "sehen",      label: "Sehen" },
-  { id: "hoeren",     label: "Hören" },
-];
-
+// Dynamisch aus Store geladen — nicht mehr hardcoded
+let TOPICS        = [];   // Topics des aktiven Fachs
+let activeSubject = null; // { id, name, topics }
 let activeTopic   = null;
 let activeFolder  = null;
-let activeFilter  = null; // "flashcard" | "note" | "image" | "folder" | null
+let activeFilter  = null;
 let editingItemId = null;
 let pendingImgUrl = null;
 let pendingEditImgUrl = null;
 let noteImages    = [];
-let fcImages      = { front: null, back: null }; // { dataUrl } | null pro Seite
+let fcImages      = { front: null, back: null };
 
 // ---------- Init ----------
-document.addEventListener("DOMContentLoaded", () => {
-  buildNav();
+document.addEventListener("DOMContentLoaded", async () => {
+  await initSubjects();
   bindModals();
+  bindSubjectUI();
   bindFormatToolbars();
   bindAutosave();
-  showHome();
   bindBackup();
   startAutoBackup();
   bindEsc();
@@ -43,9 +29,204 @@ document.addEventListener("DOMContentLoaded", () => {
     badge.id = "server-badge";
     badge.textContent = "● Server";
     badge.title = "Daten werden in data.json gespeichert";
-    document.getElementById("nav-logo").appendChild(badge);
+    document.getElementById("subject-btn").appendChild(badge);
   }
 });
+
+// ---------- Subjects laden & Nav aufbauen ----------
+async function initSubjects() {
+  const subjects = await Store.getSubjects();
+  // Letztes aktives Fach aus sessionStorage laden
+  const lastId = sessionStorage.getItem("activeSubjectId");
+  const found  = subjects.find(s => s.id === lastId) || subjects[0];
+  await switchSubject(found, false);
+}
+
+async function switchSubject(subject, resetTopic = true) {
+  activeSubject = subject;
+  TOPICS = subject.topics;
+  sessionStorage.setItem("activeSubjectId", subject.id);
+  document.getElementById("subject-name").textContent = subject.name;
+  buildNav();
+  if (resetTopic) {
+    activeTopic  = null;
+    activeFolder = null;
+    activeFilter = null;
+    showHome();
+  } else {
+    // Dashboard im Hintergrund aktualisieren falls sichtbar
+    if (!document.getElementById("home-screen").classList.contains("hidden")) {
+      renderDashboard();
+    }
+  }
+}
+
+// ---------- Subject-Dropdown UI ----------
+function bindSubjectUI() {
+  const btn      = document.getElementById("subject-btn");
+  const dropdown = document.getElementById("subject-dropdown");
+
+  btn.addEventListener("click", async e => {
+    e.stopPropagation();
+    if (!dropdown.classList.contains("hidden")) {
+      dropdown.classList.add("hidden");
+      return;
+    }
+    await renderSubjectList();
+    dropdown.classList.remove("hidden");
+
+    // Dropdown unter dem Button positionieren
+    const rect = btn.getBoundingClientRect();
+    dropdown.style.top  = `${rect.bottom + 4 + window.scrollY}px`;
+    dropdown.style.left = `${rect.left}px`;
+
+    const openedAt = Date.now();
+    document.addEventListener("pointerdown", function close(ev) {
+      if (Date.now() - openedAt < 150) return;
+      if (!dropdown.contains(ev.target) && ev.target !== btn) {
+        dropdown.classList.add("hidden");
+        document.removeEventListener("pointerdown", close);
+      }
+    });
+  });
+
+  // Neues Fach
+  document.getElementById("btn-new-subject").addEventListener("click", () => {
+    dropdown.classList.add("hidden");
+    document.getElementById("new-subject-name").value = "";
+    openModal("modal-new-subject");
+    setTimeout(() => document.getElementById("new-subject-name").focus(), 50);
+  });
+  document.getElementById("new-subject-cancel").addEventListener("click", () => closeModal("modal-new-subject"));
+  document.getElementById("new-subject-save").addEventListener("click", async () => {
+    const name = document.getElementById("new-subject-name").value.trim();
+    if (!name) return;
+    const subject = await Store.addSubject(name);
+    closeModal("modal-new-subject");
+    await switchSubject(subject);
+    openModal("modal-manage-topics");
+    renderTopicManageList();
+  });
+  document.getElementById("new-subject-name").addEventListener("keydown", e => {
+    if (e.key === "Enter") document.getElementById("new-subject-save").click();
+  });
+
+  // Fach umbenennen
+  document.getElementById("rename-subject-cancel").addEventListener("click", () => closeModal("modal-rename-subject"));
+  document.getElementById("rename-subject-save").addEventListener("click", async () => {
+    const name = document.getElementById("rename-subject-input").value.trim();
+    if (!name) return;
+    await Store.renameSubject(activeSubject.id, name);
+    activeSubject.name = name;
+    document.getElementById("subject-name").textContent = name;
+    closeModal("modal-rename-subject");
+  });
+  document.getElementById("rename-subject-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") document.getElementById("rename-subject-save").click();
+  });
+
+  // Themen verwalten
+  document.getElementById("btn-manage-topics").addEventListener("click", () => {
+    dropdown.classList.add("hidden");
+    renderTopicManageList();
+    openModal("modal-manage-topics");
+  });
+  document.getElementById("manage-topics-close").addEventListener("click", () => closeModal("modal-manage-topics"));
+  document.getElementById("new-topic-save").addEventListener("click", addNewTopic);
+  document.getElementById("new-topic-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") addNewTopic();
+  });
+}
+
+async function renderSubjectList() {
+  const subjects = await Store.getSubjects();
+  const list = document.getElementById("subject-list");
+  list.innerHTML = "";
+  subjects.forEach(s => {
+    const row = document.createElement("div");
+    row.className = "subject-dd-item" + (s.id === activeSubject.id ? " active" : "");
+    row.innerHTML = `
+      <button class="subject-dd-switch">${escHtml(s.name)}</button>
+      <div class="subject-dd-item-actions">
+        <button class="subject-dd-icon" title="Umbenennen" data-action="rename" data-id="${s.id}">✎</button>
+        <button class="subject-dd-icon danger" title="Löschen" data-action="delete" data-id="${s.id}">✕</button>
+      </div>`;
+    row.querySelector(".subject-dd-switch").addEventListener("click", async () => {
+      document.getElementById("subject-dropdown").classList.add("hidden");
+      const fresh = (await Store.getSubjects()).find(x => x.id === s.id);
+      if (fresh) await switchSubject(fresh);
+    });
+    row.querySelector("[data-action='rename']").addEventListener("click", e => {
+      e.stopPropagation();
+      document.getElementById("subject-dropdown").classList.add("hidden");
+      document.getElementById("rename-subject-input").value = s.name;
+      openModal("modal-rename-subject");
+      setTimeout(() => document.getElementById("rename-subject-input").focus(), 50);
+    });
+    row.querySelector("[data-action='delete']").addEventListener("click", async e => {
+      e.stopPropagation();
+      const subjects = await Store.getSubjects();
+      if (subjects.length <= 1) { alert("Das letzte Fach kann nicht gelöscht werden."); return; }
+      if (!confirm(`Fach „${s.name}" und alle Inhalte löschen?`)) return;
+      await Store.deleteSubject(s.id);
+      document.getElementById("subject-dropdown").classList.add("hidden");
+      const remaining = (await Store.getSubjects())[0];
+      await switchSubject(remaining);
+    });
+    list.appendChild(row);
+  });
+}
+
+function renderTopicManageList() {
+  const list = document.getElementById("topic-manage-list");
+  list.innerHTML = "";
+  TOPICS.forEach(t => {
+    const row = document.createElement("div");
+    row.className = "topic-manage-row";
+    row.innerHTML = `
+      <span class="topic-manage-label">${escHtml(t.label)}</span>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="icon-btn" title="Umbenennen" data-action="rename" data-id="${t.id}">✎</button>
+        <button class="icon-btn delete-btn" title="Löschen" data-action="delete" data-id="${t.id}">✕</button>
+      </div>`;
+    row.querySelector("[data-action='rename']").addEventListener("click", () => {
+      const newLabel = prompt("Neuer Name:", t.label);
+      if (!newLabel || newLabel.trim() === t.label) return;
+      Store.renameTopic(activeSubject.id, t.id, newLabel.trim()).then(async () => {
+        const fresh = (await Store.getSubjects()).find(s => s.id === activeSubject.id);
+        activeSubject = fresh;
+        TOPICS = fresh.topics;
+        buildNav();
+        renderTopicManageList();
+        if (activeTopic === t.id) document.getElementById("topic-title").textContent = newLabel.trim();
+      });
+    });
+    row.querySelector("[data-action='delete']").addEventListener("click", async () => {
+      if (!confirm(`Thema „${t.label}" und alle Inhalte löschen?`)) return;
+      await Store.deleteTopic(activeSubject.id, t.id);
+      const fresh = (await Store.getSubjects()).find(s => s.id === activeSubject.id);
+      activeSubject = fresh;
+      TOPICS = fresh.topics;
+      buildNav();
+      renderTopicManageList();
+      if (activeTopic === t.id) { activeTopic = null; showHome(); }
+    });
+    list.appendChild(row);
+  });
+  document.getElementById("new-topic-input").value = "";
+}
+
+async function addNewTopic() {
+  const label = document.getElementById("new-topic-input").value.trim();
+  if (!label) return;
+  const topic = await Store.addTopic(activeSubject.id, label);
+  const fresh = (await Store.getSubjects()).find(s => s.id === activeSubject.id);
+  activeSubject = fresh;
+  TOPICS = fresh.topics;
+  buildNav();
+  renderTopicManageList();
+}
+
 
 // ---------- ESC zum Schließen ----------
 function bindEsc() {
@@ -701,9 +882,10 @@ async function exportBackup() {
 // ---------- Nav ----------
 function buildNav() {
   const nav = document.getElementById("nav-topics");
+  nav.innerHTML = "";
   TOPICS.forEach(t => {
     const btn = document.createElement("button");
-    btn.className = "nav-topic-btn";
+    btn.className = "nav-topic-btn" + (t.id === activeTopic ? " active" : "");
     btn.textContent = t.label;
     btn.dataset.id = t.id;
     btn.addEventListener("click", () => openTopic(t.id));
@@ -721,6 +903,149 @@ function openTopic(topicId) {
 function showHome() {
   document.getElementById("home-screen").classList.remove("hidden");
   document.getElementById("topic-screen").classList.add("hidden");
+  activeTopic = null;
+  document.querySelectorAll(".nav-topic-btn").forEach(b => b.classList.remove("active"));
+  renderDashboard();
+}
+
+async function renderDashboard() {
+  const dash = document.getElementById("dashboard");
+  dash.innerHTML = `<div class="db-loading">Lädt…</div>`;
+
+  const subjects = await Store.getSubjects();
+
+  // Gesamtstatistik über alle Topics aller Fächer
+  let total = { flashcards: 0, notes: 0, images: 0, folders: 0 };
+  for (const subj of subjects) {
+    for (const t of subj.topics) {
+      const s = await Store.stats(t.id);
+      total.flashcards += s.flashcards;
+      total.notes      += s.notes;
+      total.images     += s.images;
+      total.folders    += s.folders;
+    }
+  }
+
+  // Pro Fach: Gesamtzahl Items (für Fortschrittsbalken)
+  const subjStats = [];
+  for (const subj of subjects) {
+    let fc = 0, n = 0, img = 0, total_items = 0;
+    for (const t of subj.topics) {
+      const s = await Store.stats(t.id);
+      fc    += s.flashcards;
+      n     += s.notes;
+      img   += s.images;
+      total_items += s.flashcards + s.notes + s.images + s.folders;
+    }
+    subjStats.push({ subj, fc, n, img, total: total_items });
+  }
+
+  const maxItems = Math.max(...subjStats.map(s => s.total), 1);
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend";
+
+  dash.innerHTML = "";
+
+  // Header
+  const header = document.createElement("div");
+  header.className = "db-header";
+  header.innerHTML = `
+    <div>
+      <div class="db-greeting">${greeting} 👋</div>
+      <div class="db-subtitle">${subjects.length} Fach${subjects.length !== 1 ? "fächer" : ""} · ${TOPICS.length} Themen aktiv</div>
+    </div>
+    <div class="db-quick-btns">
+      <button class="db-quick-btn" id="db-new-subject-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Neues Fach
+      </button>
+    </div>`;
+  header.querySelector("#db-new-subject-btn").addEventListener("click", () => {
+    document.getElementById("new-subject-name").value = "";
+    openModal("modal-new-subject");
+    setTimeout(() => document.getElementById("new-subject-name").focus(), 50);
+  });
+  dash.appendChild(header);
+
+  // Gesamtstatistik
+  const statsRow = document.createElement("div");
+  statsRow.className = "db-stats-row";
+  [
+    { icon: "ti-cards",     num: total.flashcards, label: "Karteikarten" },
+    { icon: "ti-file-text", num: total.notes,       label: "Notizen" },
+    { icon: "ti-photo",     num: total.images,      label: "Bilder" },
+    { icon: "ti-folder",    num: total.folders,     label: "Ordner" },
+  ].forEach(({ icon, num, label }) => {
+    const card = document.createElement("div");
+    card.className = "db-stat-card";
+    card.innerHTML = `
+      <i class="ti ${icon} db-stat-icon" aria-hidden="true"></i>
+      <div class="db-stat-num">${num}</div>
+      <div class="db-stat-lbl">${label}</div>`;
+    statsRow.appendChild(card);
+  });
+  dash.appendChild(statsRow);
+
+  // Fach-Kacheln
+  const sectionLabel = document.createElement("div");
+  sectionLabel.className = "db-section-label";
+  sectionLabel.textContent = "Fächer";
+  dash.appendChild(sectionLabel);
+
+  const grid = document.createElement("div");
+  grid.className = "db-subjects-grid";
+
+  subjStats.forEach(({ subj, fc, n, img, total: tot }) => {
+    const card = document.createElement("div");
+    card.className = "db-subject-card" + (subj.id === activeSubject?.id ? " db-subject-active" : "");
+    const pct = Math.round((tot / maxItems) * 100);
+    const barColor = pct > 60 ? "#2f9e44" : pct > 25 ? "#f59f00" : "#aaa";
+
+    card.innerHTML = `
+      <div class="db-subject-name">${escHtml(subj.name)}</div>
+      <div class="db-subject-meta">
+        <span title="Karteikarten">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="12" x2="22" y2="12" stroke-dasharray="3 2"/></svg>
+          ${fc}
+        </span>
+        <span title="Notizen">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          ${n}
+        </span>
+        <span title="Bilder">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          ${img}
+        </span>
+        <span class="db-subject-topics">${subj.topics.length} Themen</span>
+      </div>
+      <div class="db-progress-bar">
+        <div class="db-progress-fill" style="width:${Math.max(pct, 3)}%;background:${barColor}"></div>
+      </div>`;
+
+    card.addEventListener("click", async () => {
+      if (subj.id !== activeSubject?.id) {
+        await switchSubject(subj, true);
+      }
+      // Erstes Topic mit Inhalt öffnen, sonst erstes Topic
+      let target = subj.topics[0];
+      for (const t of subj.topics) {
+        const s = await Store.stats(t.id);
+        if (s.flashcards + s.notes + s.images > 0) { target = t; break; }
+      }
+      if (target) openTopic(target.id);
+    });
+
+    grid.appendChild(card);
+  });
+
+  if (subjStats.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "db-empty";
+    empty.textContent = "Noch keine Fächer angelegt. Klicke auf „Neues Fach";
+    grid.appendChild(empty);
+  }
+
+  dash.appendChild(grid);
 }
 
 function renderTopicScreen() {

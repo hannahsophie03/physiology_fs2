@@ -1473,3 +1473,201 @@ textarea { resize: vertical; line-height: 1.55; }
   padding: 0;
   line-height: 1;
 }
+
+/* ============================================================
+   SUBJECT BUTTON & DROPDOWN
+   ============================================================ */
+#subject-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+#subject-btn:hover #subject-name { text-decoration: underline; }
+#subject-btn svg { color: var(--text-muted); flex-shrink: 0; }
+
+.subject-dropdown {
+  position: absolute;
+  z-index: 300;
+  background: var(--bg);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  min-width: 240px;
+  overflow: hidden;
+}
+.subject-dropdown-inner { padding: 6px; }
+.subject-dd-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 6px 8px 4px;
+}
+.subject-dd-item {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+.subject-dd-item.active { background: var(--accent-l); }
+.subject-dd-switch {
+  flex: 1;
+  padding: 7px 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+.subject-dd-switch:hover { background: var(--bg2); }
+.subject-dd-item.active .subject-dd-switch { color: var(--accent); font-weight: 500; }
+.subject-dd-item-actions { display: flex; gap: 2px; padding-right: 4px; opacity: 0; transition: opacity 0.15s; }
+.subject-dd-item:hover .subject-dd-item-actions { opacity: 1; }
+.subject-dd-icon {
+  width: 24px; height: 24px;
+  border: none; background: none;
+  cursor: pointer; border-radius: 4px;
+  font-size: 12px; color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+}
+.subject-dd-icon:hover { background: var(--bg3); color: var(--text); }
+.subject-dd-icon.danger:hover { color: var(--danger); }
+.subject-dd-divider { height: 0.5px; background: var(--border); margin: 4px 0; }
+.subject-dd-action {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 7px 10px;
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; color: var(--text-muted);
+  border-radius: var(--radius-sm); text-align: left;
+}
+.subject-dd-action:hover { background: var(--bg2); color: var(--text); }
+
+/* Themen verwalten Modal */
+.topic-manage-row {
+  display: flex; align-items: center;
+  justify-content: space-between; gap: 8px;
+  padding: 7px 4px;
+  border-bottom: 0.5px solid var(--border);
+}
+.topic-manage-row:last-child { border-bottom: none; }
+.topic-manage-label { font-size: 13px; color: var(--text); word-break: break-word; flex: 1; }
+#topic-manage-list { max-height: 320px; overflow-y: auto; margin-bottom: 4px; }
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+#home-screen { padding: 0; background: none; }
+#dashboard { padding: 2rem 0; }
+
+.db-loading { color: var(--text-hint); font-size: 14px; padding: 3rem 0; text-align: center; }
+
+.db-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+.db-greeting { font-size: 20px; font-weight: 500; color: var(--text); margin-bottom: 3px; }
+.db-subtitle { font-size: 13px; color: var(--text-muted); }
+.db-quick-btns { display: flex; gap: 8px; }
+.db-quick-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 14px; font-size: 13px;
+  border: 0.5px solid var(--border2); border-radius: var(--radius-sm);
+  background: var(--bg); color: var(--text); cursor: pointer;
+  transition: background 0.15s;
+}
+.db-quick-btn:hover { background: var(--bg2); }
+
+.db-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 1.75rem;
+}
+.db-stat-card {
+  background: var(--bg2);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.db-stat-icon { font-size: 18px; color: var(--text-muted); margin-bottom: 2px; }
+.db-stat-num { font-size: 24px; font-weight: 500; color: var(--text); }
+.db-stat-lbl { font-size: 12px; color: var(--text-muted); }
+
+.db-section-label {
+  font-size: 11px; font-weight: 500; color: var(--text-hint);
+  text-transform: uppercase; letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.db-subjects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.db-subject-card {
+  background: var(--bg);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem 1.1rem 0.9rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.db-subject-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-l);
+}
+.db-subject-active {
+  border-color: var(--accent);
+  background: var(--accent-l);
+}
+.db-subject-name {
+  font-size: 14px; font-weight: 500;
+  color: var(--text); line-height: 1.3;
+}
+.db-subject-meta {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.db-subject-meta span {
+  display: flex; align-items: center; gap: 3px;
+  font-size: 12px; color: var(--text-muted);
+}
+.db-subject-topics {
+  font-size: 11px; color: var(--text-hint);
+  margin-left: auto;
+}
+.db-progress-bar {
+  height: 3px; background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.db-progress-fill { height: 100%; border-radius: 2px; transition: width 0.4s ease; }
+
+.db-empty {
+  grid-column: 1/-1; text-align: center;
+  padding: 3rem 2rem; color: var(--text-hint); font-size: 14px;
+}
+
+@media (max-width: 600px) {
+  .db-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .db-subjects-grid { grid-template-columns: 1fr; }
+}

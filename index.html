@@ -15,7 +15,10 @@
   <!-- TOP NAV -->
   <nav id="top-nav">
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-      <div id="nav-logo">Physiologie</div>
+      <button id="subject-btn" title="Fach wechseln oder verwalten">
+        <span id="subject-name">Lade…</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
       <div id="nav-backup-btns">
         <button id="btn-export" title="Alle Daten als Backup speichern">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -31,12 +34,67 @@
     <div id="nav-topics"></div>
   </nav>
 
+  <!-- Subject Dropdown -->
+  <div id="subject-dropdown" class="subject-dropdown hidden">
+    <div class="subject-dropdown-inner">
+      <div class="subject-dd-label">Fach wechseln</div>
+      <div id="subject-list"></div>
+      <div class="subject-dd-divider"></div>
+      <button id="btn-new-subject" class="subject-dd-action">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Neues Fach anlegen
+      </button>
+      <button id="btn-manage-topics" class="subject-dd-action">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Themen verwalten
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal: Neues Fach -->
+  <div id="modal-new-subject" class="modal hidden">
+    <div class="modal-box" style="max-width:380px">
+      <div class="modal-title">Neues Fach anlegen</div>
+      <input id="new-subject-name" placeholder="z.B. Biochemie, Anatomie…" />
+      <div class="modal-footer">
+        <button class="btn-cancel" id="new-subject-cancel">Abbrechen</button>
+        <button class="btn-save" id="new-subject-save">Anlegen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Fach umbenennen -->
+  <div id="modal-rename-subject" class="modal hidden">
+    <div class="modal-box" style="max-width:380px">
+      <div class="modal-title">Fach umbenennen</div>
+      <input id="rename-subject-input" placeholder="Neuer Name…" />
+      <div class="modal-footer">
+        <button class="btn-cancel" id="rename-subject-cancel">Abbrechen</button>
+        <button class="btn-save" id="rename-subject-save">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Themen verwalten -->
+  <div id="modal-manage-topics" class="modal hidden">
+    <div class="modal-box" style="max-width:480px">
+      <div class="modal-title">Themen verwalten</div>
+      <div id="topic-manage-list"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <input id="new-topic-input" placeholder="Neues Thema…" style="flex:1" />
+        <button class="btn-save" id="new-topic-save" style="white-space:nowrap">+ Hinzufügen</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" id="manage-topics-close">Schließen</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MAIN CONTENT -->
   <main id="main">
-    <!-- Home screen -->
+    <!-- Dashboard -->
     <div id="home-screen">
-      <h2>Wähle ein Thema oben in der Leiste</h2>
-      <p>Deine Lernkarten, Notizen und Bilder werden automatisch im Browser gespeichert.</p>
+      <div id="dashboard"></div>
     </div>
 
     <!-- Topic screen (injected by JS) -->
