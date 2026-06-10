@@ -5,6 +5,7 @@
 const TOPICS = [
   { id: "zellphysio", label: "Zellphysiologie & Homöostase" },
   { id: "muskel",     label: "Muskelphysiologie" },
+  { id: "vegetativesns",     label: "Vegetatives NS" },
   { id: "blut",       label: "Blut" },
   { id: "immun",      label: "Immunsystem" },
   { id: "atmung",     label: "Atmung" },

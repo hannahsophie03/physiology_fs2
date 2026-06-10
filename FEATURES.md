@@ -1,10 +1,11 @@
 Add: 
 + Bilder direkt in text integrieren
 + Umbau mehrere Fächer -> klick auf Button wo gerade Physiologie steht mit dropdown menü -> Auswahl unterschiedlicher Fächer
++ Dashboard Seite
++ Karteikartenfärbung liegt hinter Kacheln -> auf Karteikarte übertragen -> fixen
 
 
-
-Testen:
+Test:
 + Listenpunkt mit Tab verschieben
 + füge Autosave Backup-dateien zu gitignore hinzu
 
