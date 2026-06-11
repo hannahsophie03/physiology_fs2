@@ -1,12 +1,14 @@
 Add: 
 + Bilder direkt in text integrieren
-+ Dashboard Seite
+
 + Karteikartenfärbung liegt hinter Kacheln -> auf Karteikarte übertragen -> fixen
++ Farben in Tabelle ermöglichen
+
 
 
 Test:
 + Listenpunkt mit Tab verschieben
-+
++ 
 
 
 
@@ -19,3 +21,5 @@ Done:
 + Toolbar: Shortcut für Tabelle
  füge Autosave Backup-dateien zu gitignore hinzu
  + Umbau mehrere Fächer -> klick auf Button wo gerade Physiologie steht mit dropdown menü -> Auswahl unterschiedlicher Fächer
+ + Back to dashboard
+ + Dashboard Seite

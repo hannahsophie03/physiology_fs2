@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindBackup();
   startAutoBackup();
   bindEsc();
+  document.getElementById("home-btn").addEventListener("click", showHome);
   if (Store.isServerMode()) {
     const badge = document.createElement("span");
     badge.id = "server-badge";
@@ -903,9 +904,20 @@ function openTopic(topicId) {
 function showHome() {
   document.getElementById("home-screen").classList.remove("hidden");
   document.getElementById("topic-screen").classList.add("hidden");
+  document.getElementById("nav-topics").classList.add("hidden");
   activeTopic = null;
   document.querySelectorAll(".nav-topic-btn").forEach(b => b.classList.remove("active"));
   renderDashboard();
+}
+
+function renderTopicScreen() {
+  document.getElementById("home-screen").classList.add("hidden");
+  document.getElementById("topic-screen").classList.remove("hidden");
+  document.getElementById("nav-topics").classList.remove("hidden");
+  const topic = TOPICS.find(t => t.id === activeTopic);
+  document.getElementById("topic-title").textContent = topic?.label || "";
+  renderBreadcrumb();
+  renderGrid();
 }
 
 async function renderDashboard() {
@@ -1018,13 +1030,20 @@ async function renderDashboard() {
         </span>
         <span class="db-subject-topics">${subj.topics.length} Themen</span>
       </div>
-      <div class="db-progress-bar">
-        <div class="db-progress-fill" style="width:${Math.max(pct, 3)}%;background:${barColor}"></div>
-      </div>`;
+      ${subj.topics.length === 0
+        ? `<div class="db-subject-empty-hint">Klicken um Themen hinzuzufügen →</div>`
+        : `<div class="db-progress-bar"><div class="db-progress-fill" style="width:${Math.max(pct, 3)}%;background:${barColor}"></div></div>`
+      }`;
 
     card.addEventListener("click", async () => {
       if (subj.id !== activeSubject?.id) {
         await switchSubject(subj, true);
+      }
+      // Kein Topic vorhanden → Themen verwalten öffnen
+      if (!subj.topics.length) {
+        renderTopicManageList();
+        openModal("modal-manage-topics");
+        return;
       }
       // Erstes Topic mit Inhalt öffnen, sonst erstes Topic
       let target = subj.topics[0];
@@ -1032,7 +1051,7 @@ async function renderDashboard() {
         const s = await Store.stats(t.id);
         if (s.flashcards + s.notes + s.images > 0) { target = t; break; }
       }
-      if (target) openTopic(target.id);
+      openTopic(target.id);
     });
 
     grid.appendChild(card);
@@ -1048,13 +1067,6 @@ async function renderDashboard() {
   dash.appendChild(grid);
 }
 
-function renderTopicScreen() {
-  document.getElementById("home-screen").classList.add("hidden");
-  document.getElementById("topic-screen").classList.remove("hidden");
-  document.getElementById("topic-title").textContent = TOPICS.find(t => t.id === activeTopic).label;
-  renderBreadcrumb();
-  renderGrid();
-}
 
 // ---------- Breadcrumb ----------
 async function renderBreadcrumb() {
