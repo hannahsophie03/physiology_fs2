@@ -1700,3 +1700,25 @@ textarea { resize: vertical; line-height: 1.55; }
   color: var(--accent);
   border-color: var(--accent);
 }
+
+/* Move Dialog Tabs */
+.move-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 0.5px solid var(--border2);
+  margin-bottom: 10px;
+}
+.move-tab {
+  padding: 7px 14px;
+  font-size: 13px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: -0.5px;
+}
+.move-tab:hover { color: var(--text); }
+.move-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+.move-panel { max-height: 280px; overflow-y: auto; }

@@ -258,5 +258,38 @@ const Store = (() => {
       });
       await _persist(data);
     },
+
+    /** Item (inkl. aller Kinder bei Ordnern) von einem Topic in ein anderes verschieben */
+    async moveItemToTopic(fromTopicId, toTopicId, itemId, toFolderId = null) {
+      const { data, topic: fromTopic } = await _topicData(fromTopicId);
+      await _topicData(toTopicId); // sicherstellen dass Ziel existiert
+      const toTopic = data[toTopicId];
+
+      const item = fromTopic.items.find(i => i.id === itemId);
+      if (!item) return;
+
+      // Bei Ordnern: alle Kinder rekursiv mitsammeln
+      const toMove = new Set([itemId]);
+      if (item.type === "folder") {
+        let changed = true;
+        while (changed) {
+          changed = false;
+          fromTopic.items.forEach(i => {
+            if (i.folderId && toMove.has(i.folderId) && !toMove.has(i.id)) {
+              toMove.add(i.id); changed = true;
+            }
+          });
+        }
+      }
+
+      const moving = fromTopic.items.filter(i => toMove.has(i.id));
+      // Root-Item bekommt neue folderId
+      moving.find(i => i.id === itemId).folderId = toFolderId;
+      // In Ziel-Topic einfügen
+      toTopic.items.push(...moving);
+      // Aus Quell-Topic entfernen
+      fromTopic.items = fromTopic.items.filter(i => !toMove.has(i.id));
+      await _persist(data);
+    },
   };
 })();

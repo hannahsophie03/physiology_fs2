@@ -1187,9 +1187,74 @@ function makeMoveBtn(item) {
 }
 
 async function openMoveDialog(item) {
-  // Alle Ordner im aktuellen Topic laden (außer dem Item selbst wenn es ein Ordner ist)
-  const allItems = await Store.getItems(activeTopic, null);
-  // Auch Ordner in Unterordnern sammeln
+  document.getElementById("modal-move")?.remove();
+
+  const modal = document.createElement("div");
+  modal.id = "modal-move";
+  modal.className = "modal";
+
+  const box = document.createElement("div");
+  box.className = "modal-box";
+  box.style.maxWidth = "420px";
+  box.innerHTML = `
+    <div class="modal-title">Verschieben nach…</div>
+    <div class="move-tabs">
+      <button class="move-tab active" data-tab="topic">Anderes Thema</button>
+      <button class="move-tab" data-tab="folder">Ordner im Thema</button>
+    </div>
+    <div id="move-panel-topic" class="move-panel">
+      <div class="move-folder-list" id="move-topic-list"></div>
+    </div>
+    <div id="move-panel-folder" class="move-panel hidden">
+      <div class="move-folder-list" id="move-folder-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" id="move-cancel">Abbrechen</button>
+    </div>`;
+
+  // Tabs
+  box.querySelectorAll(".move-tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      box.querySelectorAll(".move-tab").forEach(t => t.classList.remove("active"));
+      tab.classList.add("active");
+      box.querySelectorAll(".move-panel").forEach(p => p.classList.add("hidden"));
+      box.querySelector(`#move-panel-${tab.dataset.tab}`).classList.remove("hidden");
+    });
+  });
+
+  // --- Tab 1: Andere Themen ---
+  const topicList = box.querySelector("#move-topic-list");
+  TOPICS.forEach(t => {
+    if (t.id === activeTopic) return; // aktuelles Thema überspringen
+    const btn = document.createElement("button");
+    btn.className = "move-folder-option";
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg> ${escHtml(t.label)}`;
+    btn.addEventListener("click", async () => {
+      await Store.moveItemToTopic(activeTopic, t.id, item.id, null);
+      modal.remove();
+      renderGrid();
+    });
+    topicList.appendChild(btn);
+  });
+  if (TOPICS.length <= 1) {
+    const hint = document.createElement("p");
+    hint.style.cssText = "font-size:13px;color:var(--text-muted);padding:8px 4px";
+    hint.textContent = "Keine anderen Themen vorhanden.";
+    topicList.appendChild(hint);
+  }
+
+  // --- Tab 2: Ordner im aktuellen Thema ---
+  const folderList = box.querySelector("#move-folder-list");
+
+  const rootBtn = document.createElement("button");
+  rootBtn.className = "move-folder-option" + (item.folderId === null ? " current" : "");
+  rootBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Hauptebene`;
+  rootBtn.addEventListener("click", async () => {
+    await Store.updateItem(activeTopic, item.id, { folderId: null });
+    modal.remove(); renderGrid();
+  });
+  folderList.appendChild(rootBtn);
+
   const allFolders = [];
   async function collectFolders(folderId, depth) {
     const children = await Store.getItems(activeTopic, folderId);
@@ -1202,34 +1267,6 @@ async function openMoveDialog(item) {
   }
   await collectFolders(null, 0);
 
-  // Altes Modal entfernen
-  document.getElementById("modal-move")?.remove();
-
-  const modal = document.createElement("div");
-  modal.id = "modal-move";
-  modal.className = "modal";
-
-  const box = document.createElement("div");
-  box.className = "modal-box";
-  box.style.maxWidth = "380px";
-  box.innerHTML = `<div class="modal-title">Kachel verschieben</div>
-    <div class="move-folder-list"></div>
-    <div class="modal-footer">
-      <button class="btn-cancel" id="move-cancel">Abbrechen</button>
-    </div>`;
-
-  const list = box.querySelector(".move-folder-list");
-
-  // Root-Option
-  const rootBtn = document.createElement("button");
-  rootBtn.className = "move-folder-option" + (item.folderId === null ? " current" : "");
-  rootBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> Hauptebene`;
-  rootBtn.addEventListener("click", async () => {
-    await Store.updateItem(activeTopic, item.id, { folderId: null });
-    modal.remove(); renderGrid();
-  });
-  list.appendChild(rootBtn);
-
   allFolders.forEach(f => {
     const btn = document.createElement("button");
     btn.className = "move-folder-option" + (item.folderId === f.id ? " current" : "");
@@ -1239,14 +1276,14 @@ async function openMoveDialog(item) {
       await Store.updateItem(activeTopic, item.id, { folderId: f.id });
       modal.remove(); renderGrid();
     });
-    list.appendChild(btn);
+    folderList.appendChild(btn);
   });
 
-  if (allFolders.length === 0 && item.folderId === null) {
+  if (allFolders.length === 0) {
     const hint = document.createElement("p");
-    hint.style.cssText = "font-size:13px;color:var(--text-muted);padding:8px 0";
-    hint.textContent = "Noch keine Ordner vorhanden.";
-    list.appendChild(hint);
+    hint.style.cssText = "font-size:13px;color:var(--text-muted);padding:8px 4px";
+    hint.textContent = "Keine Ordner vorhanden.";
+    folderList.appendChild(hint);
   }
 
   box.querySelector("#move-cancel").addEventListener("click", () => modal.remove());
