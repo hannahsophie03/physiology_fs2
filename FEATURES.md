@@ -1,6 +1,6 @@
 Add: 
 + Bilder direkt in text integrieren
-
++ Notizen untereinander verlinken durch Klick auf markierte Textpassage 
 + Karteikartenfärbung liegt hinter Kacheln -> auf Karteikarte übertragen -> fixen
 + Farben in Tabelle ermöglichen
 
@@ -10,6 +10,10 @@ Test:
 + Listenpunkt mit Tab verschieben
 + 
 
+
+Fix:
++ Listenpunkt mit Tab verschieben
++ 
 
 
 
