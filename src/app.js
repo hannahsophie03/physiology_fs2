@@ -1305,11 +1305,18 @@ const COLOR_PRESETS = [
 
 function applyCardColor(el, color) {
   if (color) {
-    el.style.background       = color;
-    el.style.borderColor      = color;
+    el.style.background  = color;
+    el.style.borderColor = color;
+    // Bei Karteikarten auch die sichtbaren Seiten einfärben
+    el.querySelectorAll(".flashcard-front, .flashcard-back").forEach(face => {
+      face.style.background = color;
+    });
   } else {
-    el.style.background       = "";
-    el.style.borderColor      = "";
+    el.style.background  = "";
+    el.style.borderColor = "";
+    el.querySelectorAll(".flashcard-front, .flashcard-back").forEach(face => {
+      face.style.background = "";
+    });
   }
 }
 
@@ -1462,8 +1469,8 @@ function makeFlashcard(item) {
   actions.querySelector(".icon-btn:nth-child(2)").addEventListener("click", () => openFlashcardEdit(item));
   actions.querySelector(".delete-btn").addEventListener("click", async () => { await Store.deleteItem(activeTopic, item.id); renderGrid(); });
   actions.insertBefore(makeMoveBtn(item), actions.querySelector(".delete-btn"));
-  actions.insertBefore(makeColorBtn(item, card), actions.querySelector(".delete-btn"));
-  applyCardColor(card, item.color);
+  actions.insertBefore(makeColorBtn(item, wrapper), actions.querySelector(".delete-btn"));
+  applyCardColor(wrapper, item.color);
 
   wrapper.appendChild(card);
   wrapper.appendChild(actions);
