@@ -3,6 +3,7 @@ Add:
 + Notizen untereinander verlinken durch Klick auf markierte Textpassage 
 + Karteikartenfärbung liegt hinter Kacheln -> auf Karteikarte übertragen -> fixen
 + Farben in Tabelle ermöglichen
++ automatically load all data
 
 
 
